@@ -1,0 +1,34 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<a href="{% url 'dashboard' %}" class="btn btn-outline-secondary mb-3">&larr; Back to Dashboard</a>
+
+<h2 style="color: {{ discipline.color }};">{{ discipline.name }} - Levels</h2>
+
+<div class="list-group">
+    {% for level_data in levels_data %}
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-1">Level {{ level_data.level.number }}</h5>
+            {% if level_data.progress %}
+            <span class="badge bg-success">Best Score: {{ level_data.progress.score }}</span>
+            <span class="badge bg-warning text-dark">Stars: {{ level_data.progress.stars }}</span>
+            {% else %}
+            <span class="badge bg-secondary">Not Played Yet</span>
+            {% endif %}
+        </div>
+
+        <form action="{% url 'play_level' level_data.level.id %}" method="post" class="d-flex gap-2">
+            {% csrf_token %}
+            <input type="number" name="score" class="form-control form-control-sm" placeholder="Score"
+                style="width: 80px;" required>
+            <input type="number" name="stars" class="form-control form-control-sm" placeholder="Stars (1-3)" min="1"
+                max="3" style="width: 80px;" required>
+            <button type="submit" class="btn btn-primary btn-sm">Simulate Play</button>
+        </form>
+    </div>
+    {% empty %}
+    <div class="list-group-item">No levels defined for this discipline.</div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Levels for {{ discipline.name }}</h1>
+    <a href="{% url 'level_add' discipline.id %}" class="btn btn-success">Add Level</a>
+</div>
+<a href="{% url 'discipline_list' %}" class="btn btn-outline-secondary mb-3">&larr; Back to Disciplines</a>
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>Level Number</th>
+            <th>Active</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for level in levels %}
+        <tr>
+            <td>Level {{ level.number }}</td>
+            <td>{{ level.is_active|yesno:"Yes,No" }}</td>
+            <td>
+                <a href="{% url 'level_edit' level.id %}" class="btn btn-sm btn-primary">Edit JSON</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3">No levels found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

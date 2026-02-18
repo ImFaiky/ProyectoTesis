@@ -1,99 +1,116 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>{% if object %}Edit Level {{ object.number }}{% else %}Add Level{% endif %} ({{ discipline.name }})</h2>
-        <a href="{% url 'level_list' discipline.id %}" class="btn btn-secondary">Cancel</a>
-    </div>
-
-    <form method="post" id="levelForm">
-        {% csrf_token %}
-
-        <!-- Standard Django Fields -->
-        {% if form.errors %}
-        <div class="alert alert-danger">
-            <h4>Please fix the following errors:</h4>
-            <ul>
-                {% for field in form %}
-                {% if field.errors %}
-                <li>{{ field.label }}: {{ field.errors|striptags }}</li>
-                {% endif %}
-                {% endfor %}
-                {% for error in form.non_field_errors %}
-                <li>{{ error }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
-
-        <div class="row">
-            <div class="col-md-6">
-                <div class="mb-3">
-                    <label class="form-label">Level Number</label>
-                    {{ form.number }}
-                </div>
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="h3 mb-0 text-gray-800">{% if object %}Edit Level {{ object.number }}{% else %}Add Level
+                    {% endif %} <small class="text-muted">({{ discipline.name }})</small></h2>
+                <a href="{% url 'level_list' discipline.id %}" class="btn btn-outline-secondary">Cancel</a>
             </div>
-            <div class="col-md-6">
-                <div class="mb-3">
-                    <label class="form-label">Active</label>
-                    <div class="form-check form-switch">
-                        {{ form.is_active }}
+
+            <form method="post" id="levelForm">
+                {% csrf_token %}
+
+                <!-- Main Configuration Card -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Level Configuration</h6>
+                    </div>
+                    <div class="card-body">
+                        <!-- Standard Django Fields -->
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h4>Please fix the following errors:</h4>
+                            <ul>
+                                {% for field in form %}
+                                {% if field.errors %}
+                                <li>{{ field.label }}: {{ field.errors|striptags }}</li>
+                                {% endif %}
+                                {% endfor %}
+                                {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Level Number</label>
+                                    {{ form.number }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Active Status</label>
+                                    <div class="form-check form-switch fs-5">
+                                        {{ form.is_active }}
+                                        <label class="form-check-label small text-muted" for="id_is_active">Enable this
+                                            level for students</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden JSON Field -->
+                        <div class="mb-3 d-none">
+                            {{ form.game_config_json }}
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Hidden JSON Field -->
-        <div class="mb-3">
-            <div style="display:none;">
-                {{ form.game_config_json }}
-            </div>
-            {% if form.game_config_json.errors %}
-            <div class="alert alert-danger">
-                <strong>JSON Error:</strong> {{ form.game_config_json.errors }}
-            </div>
-            {% endif %}
-        </div>
+                <!-- Questions Editor Card -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center bg-white">
+                        <h6 class="m-0 font-weight-bold text-success">Questions Editor</h6>
+                        <span class="badge bg-light text-dark border">Dynamic Content</span>
+                    </div>
+                    <div class="card-body bg-light">
 
-        <hr>
+                        <div id="questions-container">
+                            <!-- Questions will be rendered here -->
+                        </div>
 
+                        <!-- Add Question Toolbar -->
+                        <div class="card p-3 mt-4 border-primary border-2 shadow-sm">
+                            <div class="row g-2 align-items-center justify-content-center">
+                                <div class="col-auto">
+                                    <label class="fw-bold text-primary"><i class="bi bi-plus-circle"></i> Add New
+                                        Question:</label>
+                                </div>
+                                <div class="col-auto">
+                                    <select id="questionTypeSelect" class="form-select form-select-sm"
+                                        style="min-width: 200px;">
+                                        <option value="cards">Flashcards</option>
+                                        <option value="option">Select Option</option>
+                                        <option value="dragDrop">Drag & Drop</option>
+                                        <option value="matchingGame">Matching Pairs</option>
+                                        <option value="optionAudio">Audio Options</option>
+                                        <option value="speech">Pronunciation</option>
+                                        <option value="writing">Writing</option>
+                                        <option value="complete_word">Complete Word</option>
+                                    </select>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-primary btn-sm px-3"
+                                        onclick="addQuestion()">Add</button>
+                                </div>
+                            </div>
+                        </div>
 
-        <!-- Visual Editor -->
-        <h4 class="mb-3">Questions</h4>
-
-        <div id="questions-container">
-            <!-- Questions will be rendered here -->
-        </div>
-
-        <div class="card p-3 bg-light mt-3 border-dashed">
-            <div class="row g-2 align-items-center">
-                <div class="col-auto">
-                    <label class="fw-bold">Add Question Type:</label>
+                    </div>
+                    <div class="card-footer bg-white">
+                        <button type="submit" class="btn btn-success btn-lg w-100 shadow-sm"><i class="bi bi-save"></i>
+                            Save Level</button>
+                    </div>
                 </div>
-                <div class="col-auto">
-                    <select id="questionTypeSelect" class="form-select">
-                        <option value="cards">Flashcards</option>
-                        <option value="option">Select Option</option>
-                        <option value="dragDrop">Drag & Drop</option>
-                        <option value="matchingGame">Matching Pairs</option>
-                        <option value="optionAudio">Audio Options</option>
-                        <option value="speech">Pronunciation</option>
-                        <option value="writing">Writing</option>
-                        <option value="complete_word">Complete Word</option>
-                    </select>
-                </div>
-                <div class="col-auto">
-                    <button type="button" class="btn btn-success" onclick="addQuestion()">+ Add</button>
-                </div>
-            </div>
-        </div>
 
-
-        <div class="mt-4">
-            <button type="submit" class="btn btn-primary btn-lg">Save Level</button>
+            </form>
         </div>
-    </form>
+    </div>
 </div>
 
 <script>
@@ -113,45 +130,45 @@
     const questionTemplates = {
         "cards": {
             "type": "cards",
-            "question": {"text": "", "audio": "", "correct_answer": ""},
-            "options": [{"text": "", "icon": ""}, {"text": "", "icon": ""}, {"text": "", "icon": ""}, {"text": "", "icon": ""}]
+            "question": { "text": "", "audio": "", "correct_answer": "" },
+            "options": [{ "text": "", "icon": "" }, { "text": "", "icon": "" }, { "text": "", "icon": "" }, { "text": "", "icon": "" }]
         },
         "option": {
             "type": "option",
             "question": {
-                "text": "", "word": "", 
-                "options": ["", "", "", ""], 
+                "text": "", "word": "",
+                "options": ["", "", "", ""],
                 "correct_answer": ""
             }
         },
         "dragDrop": {
             "type": "dragDrop",
-            "question": {"text": "", "correct_order": [], "options": [], "sentence": ""}
+            "question": { "text": "", "correct_order": [], "options": [], "sentence": "" }
         },
         "matchingGame": {
             "type": "matchingGame",
-            "question": {"text": ""}, "pairs": []
+            "question": { "text": "" }, "pairs": []
         },
         "optionAudio": {
             "type": "optionAudio",
             "question": {
-                "text": "", "audio": "", "correct_answer": "", 
-                "options": ["", "", "", ""], 
+                "text": "", "audio": "", "correct_answer": "",
+                "options": ["", "", "", ""],
                 "correct_answer": ""
             }
         },
         "speech": {
             "type": "speech",
-            "question": {"text": "", "audio": ""}, "options": []
+            "question": { "text": "", "audio": "" }, "options": []
         },
         "writing": {
             "type": "writing",
-            "question": {"text": "", "correct_answer": ""}
+            "question": { "text": "", "correct_answer": "" }
         },
         "complete_word": {
             "type": "complete_word",
             "question": {
-                "text": "", "word": "", "missing_letters": [], 
+                "text": "", "word": "", "missing_letters": [],
                 "correct_answer": "", "question_word": ""
             }
         }
@@ -168,15 +185,15 @@
         } else {
             // Migration / Legacy support or Empty
             if (Object.keys(raw).length > 0 && !raw.questions) {
-                 // Convert old format to new format just for display/editing
-                 gameData.questions = [];
-                 for(const [key, val] of Object.entries(raw)) {
-                     // If it looks like a game config (has question etc)
-                     if(val && (val.question || val.pairs)) {
-                         val.type = key; // Ensure type is set
-                         gameData.questions.push(val); 
-                     }
-                 }
+                // Convert old format to new format just for display/editing
+                gameData.questions = [];
+                for (const [key, val] of Object.entries(raw)) {
+                    // If it looks like a game config (has question etc)
+                    if (val && (val.question || val.pairs)) {
+                        val.type = key; // Ensure type is set
+                        gameData.questions.push(val);
+                    }
+                }
             } else {
                 gameData = { questions: [] };
             }
@@ -194,7 +211,7 @@
         gameData.questions.forEach((qData, index) => {
             const card = document.createElement('div');
             card.className = 'card mb-3 border-secondary';
-            
+
             const header = document.createElement('div');
             header.className = 'card-header d-flex justify-content-between align-items-center bg-light';
             header.innerHTML = `
@@ -205,7 +222,7 @@
                     <button type="button" class="btn btn-sm btn-danger" onclick="deleteQuestion(${index})">Delete</button>
                 </div>
             `;
-            
+
             const body = document.createElement('div');
             body.className = 'card-body';
             body.appendChild(buildGameEditor(qData.type, qData, index));
@@ -214,7 +231,7 @@
             card.appendChild(body);
             container.appendChild(card);
         });
-        
+
         updateJson();
     }
 
@@ -227,7 +244,7 @@
     }
 
     function deleteQuestion(index) {
-        if(confirm('Are you sure you want to delete this question?')) {
+        if (confirm('Are you sure you want to delete this question?')) {
             gameData.questions.splice(index, 1);
             initEditor();
         }
@@ -259,8 +276,8 @@
             // Audio Field
             if (data.question.hasOwnProperty('audio') || type === 'cards' || type === 'optionAudio' || type === 'speech') {
                 // Ensure audio field exists if logic expects it
-                if(data.question.audio === undefined) data.question.audio = "";
-                
+                if (data.question.audio === undefined) data.question.audio = "";
+
                 wrapper.appendChild(createInputRow('Audio URL', data.question.audio, (val) => {
                     data.question.audio = val;
                     updateQ();
@@ -269,7 +286,7 @@
 
             // Sentence (DragDrop)
             if (type === 'dragDrop') {
-                 if(data.question.sentence === undefined) data.question.sentence = "";
+                if (data.question.sentence === undefined) data.question.sentence = "";
                 wrapper.appendChild(createInputRow('Sentence', data.question.sentence, (val) => {
                     data.question.sentence = val;
                     updateQ();
@@ -278,15 +295,15 @@
 
             // Word (Option, CompleteWord)
             if (type === 'option' || type === 'complete_word') {
-                 if(data.question.word === undefined) data.question.word = "";
+                if (data.question.word === undefined) data.question.word = "";
                 wrapper.appendChild(createInputRow('Target Word', data.question.word, (val) => {
                     data.question.word = val;
                     updateQ();
                 }));
             }
-             // Question Word (Complete Word)
-             if (type === 'complete_word') {
-                 if(data.question.question_word === undefined) data.question.question_word = "";
+            // Question Word (Complete Word)
+            if (type === 'complete_word') {
+                if (data.question.question_word === undefined) data.question.question_word = "";
                 wrapper.appendChild(createInputRow('Question Word (Displayed)', data.question.question_word, (val) => {
                     data.question.question_word = val;
                     updateQ();
@@ -296,7 +313,7 @@
             // Correct Answer (Simple Text)
             // Writing, Option (set via radio), OptionAudio, Cards
             if (type === 'writing' || type === 'cards') {
-                 if(data.question.correct_answer === undefined) data.question.correct_answer = "";
+                if (data.question.correct_answer === undefined) data.question.correct_answer = "";
                 wrapper.appendChild(createInputRow('Correct Answer', data.question.correct_answer, (val) => {
                     data.question.correct_answer = val;
                     updateQ();
@@ -345,7 +362,7 @@
             wrapper.appendChild(createInputRow('Items', listStr, (val) => {
                 const arr = val.split(',').map(s => s.trim()).filter(s => s);
                 gameData.questions[qIndex].question.correct_order = arr;
-                gameData.questions[qIndex].question.options = [...arr].sort(() => Math.random() - 0.5); 
+                gameData.questions[qIndex].question.options = [...arr].sort(() => Math.random() - 0.5);
                 updateQ();
             }));
         }
@@ -392,14 +409,14 @@
     window.updateSimpleOption = (qIdx, optIdx, val) => {
         const oldVal = gameData.questions[qIdx].question.options[optIdx];
         gameData.questions[qIdx].question.options[optIdx] = val;
-        
+
         // Update correct answer if it matched
         if (gameData.questions[qIdx].question.correct_answer === oldVal) {
-             gameData.questions[qIdx].question.correct_answer = val;
+            gameData.questions[qIdx].question.correct_answer = val;
         }
         updateJson();
     };
-    
+
     window.setCorrectOption = (qIdx, optIdx) => {
         const val = gameData.questions[qIdx].question.options[optIdx];
         gameData.questions[qIdx].question.correct_answer = val;
@@ -471,6 +488,7 @@
     .border-dashed {
         border: 2px dashed #dee2e6;
     }
+
     .form-switch .form-check-input {
         width: 3em;
         height: 1.5em;

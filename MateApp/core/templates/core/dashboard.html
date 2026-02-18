@@ -1,25 +1,48 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<h1 class="mb-4">Welcome, {{ user.username }}!</h1>
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h1 class="display-5 fw-bold text-dark">Welcome, {{ user.username }}!</h1>
+        <p class="text-muted lead">Continuing your learning journey.</p>
+    </div>
+</div>
 
-<div class="row">
+<div class="row g-4">
     {% for discipline in disciplines %}
-    <div class="col-md-4 mb-3">
-        <div class="card discipline-card shadow-sm">
-            <div class="card-body" style="border-left: 5px solid {{ discipline.color }};">
-                <h5 class="card-title">{{ discipline.name }}</h5>
-                <p class="card-text">{{ discipline.description }}</p>
-                <div class="d-flex justify-content-between align-items-center">
-                    <span class="badge bg-secondary">Difficulty: {{ discipline.difficulty }}</span>
-                    <a href="{% url 'discipline_detail' discipline.id %}" class="btn btn-primary btn-sm">Explore</a>
+    <div class="col-md-6 col-lg-4">
+        <a href="{% url 'discipline_detail' discipline.id %}" class="text-decoration-none text-dark">
+            <div class="card h-100 border-0 shadow-sm hover-scale overflow-hidden" style="border-radius: 1rem;">
+                <!-- Color Header / Background -->
+                <div class="card-body text-center p-5 d-flex flex-column align-items-center justify-content-center text-white"
+                    style="background-color: {{ discipline.color|default:'#0d6efd' }};">
+
+                    {% if discipline.icon %}
+                    <img src="{{ discipline.icon.url }}" alt="{{ discipline.name }} icon" class="mb-3"
+                        style="width: 80px; height: 80px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">
+                    {% else %}
+                    <i class="bi bi-book-half display-1 mb-3"></i>
+                    {% endif %}
+
+                    <h2 class="card-title fw-bold">{{ discipline.name }}</h2>
+                </div>
+                <!-- Details Footer -->
+                <div class="card-footer bg-white border-0 p-3 d-flex justify-content-between align-items-center">
+                    <span class="badge bg-light text-dark border"><i class="bi bi-bar-chart"></i> Difficulty: {{
+                        discipline.difficulty }}</span>
+                    <span class="btn btn-sm btn-outline-dark rounded-pill px-3">Start <i
+                            class="bi bi-chevron-right"></i></span>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
     {% empty %}
     <div class="col-12">
-        <div class="alert alert-info">No disciplines found. Please add some in the Admin panel.</div>
+        <div class="alert alert-info text-center py-5">
+            <i class="bi bi-info-circle display-4 d-block mb-3"></i>
+            <h4>No disciplines found.</h4>
+            <p>Please ask an administrator to add some content.</p>
+        </div>
     </div>
     {% endfor %}
 </div>

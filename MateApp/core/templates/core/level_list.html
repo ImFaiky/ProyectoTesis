@@ -2,33 +2,82 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Levels for {{ discipline.name }}</h1>
-    <a href="{% url 'level_add' discipline.id %}" class="btn btn-success">Add Level</a>
+    <h2>Levels for {{ discipline.name }}</h2>
+    <a href="{% url 'level_add' discipline.id %}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Level</a>
 </div>
+
 <a href="{% url 'discipline_list' %}" class="btn btn-outline-secondary mb-3">&larr; Back to Disciplines</a>
 
-<table class="table table-hover">
-    <thead>
-        <tr>
-            <th>Level Number</th>
-            <th>Active</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for level in levels %}
-        <tr>
-            <td>Level {{ level.number }}</td>
-            <td>{{ level.is_active|yesno:"Yes,No" }}</td>
-            <td>
-                <a href="{% url 'level_edit' level.id %}" class="btn btn-sm btn-primary">Edit JSON</a>
-            </td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="3">No levels found.</td>
-        </tr>
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Level Number</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for level in levels %}
+                    <tr>
+                        <td class="fw-bold">Level {{ level.number }}</td>
+                        <td>
+                            {% if level.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'level_edit' level.id %}" class="btn btn-outline-primary"
+                                    title="Edit Configuration"><i class="bi bi-gear"></i> Configure</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-center py-4">No levels found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if levels.has_other_pages %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if levels.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ levels.previous_page_number }}">Previous</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">Previous</span>
+        </li>
+        {% endif %}
+
+        {% for num in levels.paginator.page_range %}
+        <li class="page-item {% if levels.number == num %}active{% endif %}">
+            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+        </li>
         {% endfor %}
-    </tbody>
-</table>
+
+        {% if levels.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ levels.next_page_number }}">Next</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">Next</span>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
 {% endblock %}

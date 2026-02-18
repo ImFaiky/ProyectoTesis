@@ -21,7 +21,25 @@ def create_test_data():
         print("Student student1 already exists")
 
     # 2. Create Discipline
-    math, _ = Discipline.objects.get_or_create(name='Mathematics', defaults={'description': 'Math Basics', 'color': '#FF5733', 'difficulty': 1})
+    # Note: Icon handling in script is tricky without actual files. 
+    # We will just set color and name to verify the card rendering.
+    math, _ = Discipline.objects.get_or_create(
+        name='Mathematics', 
+        defaults={
+            'description': 'Math Basics', 
+            'color': '#FF5733', 
+            'difficulty': 1
+        }
+    )
+    
+    science, _ = Discipline.objects.get_or_create(
+        name='Science', 
+        defaults={
+            'description': 'World of Science', 
+            'color': '#28a745', 
+            'difficulty': 2
+        }
+    )
     
     # 3. Create Level with Mixed Questions
     config = {

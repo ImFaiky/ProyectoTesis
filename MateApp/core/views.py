@@ -10,6 +10,8 @@ from .services import save_level_progress
 from .forms import DisciplineForm, LevelForm
 import json
 
+from django.core.paginator import Paginator
+
 User = get_user_model()
 
 
@@ -28,6 +30,7 @@ class DisciplineListView(LoginRequiredMixin, AdminRequiredMixin, ListView):
     model = Discipline
     template_name = 'core/discipline_list.html'
     context_object_name = 'disciplines'
+    paginate_by = 10
 
 class DisciplineCreateView(LoginRequiredMixin, AdminRequiredMixin, CreateView):
     model = Discipline
@@ -46,8 +49,13 @@ class DisciplineUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
 @user_passes_test(is_admin)
 def level_list(request, discipline_id):
     discipline = get_object_or_404(Discipline, id=discipline_id)
-    levels = discipline.levels.all().order_by('number')
-    return render(request, 'core/level_list.html', {'discipline': discipline, 'levels': levels})
+    levels_qs = discipline.levels.all().order_by('number')
+    
+    paginator = Paginator(levels_qs, 10) 
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'core/level_list.html', {'discipline': discipline, 'levels': page_obj})
 
 class LevelCreateView(LoginRequiredMixin, AdminRequiredMixin, CreateView):
     model = Level
@@ -154,8 +162,12 @@ def play_level_simulation(request, level_id):
 @login_required
 @user_passes_test(is_admin)
 def student_list(request):
-    students = User.objects.filter(is_superuser=False, is_staff=False)
-    return render(request, 'core/student_list.html', {'students': students})
+    students_qs = User.objects.filter(is_superuser=False, is_staff=False).order_by('username')
+    paginator = Paginator(students_qs, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'core/student_list.html', {'students': page_obj})
 
 @login_required
 @user_passes_test(is_admin)

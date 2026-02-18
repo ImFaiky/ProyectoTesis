@@ -1,10 +1,14 @@
 from .models import UserLevelProgress, Level
 
-def save_level_progress(user, level, new_score, new_stars):
+def save_level_progress(user, level, new_score, new_stars, answers=None):
+    defaults = {'score': new_score, 'stars': new_stars}
+    if answers is not None:
+        defaults['answers'] = answers
+
     progress, created = UserLevelProgress.objects.get_or_create(
         user=user, 
         level=level,
-        defaults={'score': new_score, 'stars': new_stars}
+        defaults=defaults
     )
 
     if not created:
@@ -12,11 +16,14 @@ def save_level_progress(user, level, new_score, new_stars):
         if new_score > progress.score:
             progress.score = new_score
         
-        # Update only if new stars are higher (or maybe if score is higher? usually independent or tied)
-        # Flutter app logic: independent max
         if new_stars > progress.stars:
             progress.stars = new_stars
             
+        # Always update answers to reflect the latest attempt? 
+        # Or only if score is better? User asked for "overwrite if plays again", implying latest.
+        if answers is not None:
+            progress.answers = answers
+
         progress.save()
     
     return progress

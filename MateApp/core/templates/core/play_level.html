@@ -37,6 +37,7 @@
         {% csrf_token %}
         <input type="hidden" name="score" id="input-score">
         <input type="hidden" name="stars" id="input-stars">
+        <input type="hidden" name="answers" id="input-answers">
     </form>
 </div>
 
@@ -51,6 +52,7 @@
     let score = 0;
     let maxScore = 0; // To calculate stars
     let correctCount = 0;
+    let userAnswers = []; // Store { q_index, question_type, answer, correct }
 
     // --- Inits ---
     document.addEventListener('DOMContentLoaded', () => {
@@ -91,6 +93,7 @@
         currentIndex = 0;
         score = 0;
         correctCount = 0;
+        userAnswers = [];
         updateStats();
         showQuestion(currentIndex);
     }
@@ -321,6 +324,9 @@
         // Compare arrays
         const isCorrect = JSON.stringify(userItems) === JSON.stringify(correctArr);
 
+        // Record Answer
+        recordAnswer(userItems.join(', '), isCorrect, 'dragDrop');
+
         handleResult(isCorrect, isCorrect ? "Correct Order!" : "Wrong Order!");
     };
 
@@ -384,6 +390,8 @@
                 container.dataset.matchesfound = found;
 
                 if (found >= parseInt(container.dataset.totalpairs)) {
+                    // Record completion
+                    recordAnswer("Completed all matches", true, 'matchingGame');
                     handleResult(true, "All matched!");
                 }
 
@@ -406,9 +414,26 @@
 
     // --- Core Logic ---
 
-    function checkAnswer(userAnswer, correctAnswer) {
+    function checkAnswer(userAnswer, correctAnswer, type) {
         const isCorrect = userAnswer.toString().trim().toLowerCase() === correctAnswer.toString().trim().toLowerCase();
+
+        // If type is not passed, try to infer or just log
+        // Note: For option/cards/writing, we call checkAnswer directly. 
+        // We should pass 'type' from renderers or look it up.
+        // Simplified: The caller should pass type or we look up current question type
+        const currentType = questions[currentIndex].type;
+        recordAnswer(userAnswer, isCorrect, currentType);
+
         handleResult(isCorrect);
+    }
+
+    function recordAnswer(userAnswer, isCorrect, type) {
+        userAnswers.push({
+            question: questions[currentIndex].question.text || type,
+            user_answer: userAnswer,
+            correct: isCorrect,
+            q_index: currentIndex
+        });
     }
 
     function handleResult(isCorrect, customMsg) {
@@ -487,6 +512,7 @@
     function submitResults(finalScore, finalStars) {
         document.getElementById('input-score').value = finalScore;
         document.getElementById('input-stars').value = finalStars;
+        document.getElementById('input-answers').value = JSON.stringify(userAnswers);
         document.getElementById('game-form').submit();
     }
 

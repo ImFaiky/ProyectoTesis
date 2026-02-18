@@ -138,8 +138,14 @@ def play_level_simulation(request, level_id):
 
         score = int(request.POST.get('score', 0))
         stars = int(request.POST.get('stars', 0))
+        answers_json = request.POST.get('answers', '[]')
         
-        save_level_progress(request.user, level, score, stars)
+        try:
+            answers = json.loads(answers_json)
+        except json.JSONDecodeError:
+            answers = []
+
+        save_level_progress(request.user, level, score, stars, answers)
         
         return redirect('discipline_detail', discipline_id=level.discipline.id)
     
@@ -167,3 +173,9 @@ def student_create(request):
             messages.error(request, f'Error creating student: {e}')
             
     return render(request, 'core/student_form.html')
+
+@login_required
+@user_passes_test(is_admin)
+def student_level_detail(request, progress_id):
+    progress = get_object_or_404(UserLevelProgress, id=progress_id)
+    return render(request, 'core/student_level_detail.html', {'progress': progress})

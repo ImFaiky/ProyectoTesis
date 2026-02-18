@@ -30,6 +30,7 @@ class UserLevelProgress(models.Model):
     level = models.ForeignKey(Level, on_delete=models.CASCADE)
     score = models.IntegerField(default=0)
     stars = models.IntegerField(default=0)
+    answers = models.JSONField(default=list, blank=True)
     completed_at = models.DateTimeField(auto_now=True)
 
     class Meta:

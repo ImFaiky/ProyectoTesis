@@ -45,6 +45,7 @@
                 <th>Level</th>
                 <th>Score</th>
                 <th>Date</th>
+                <th>Details</th>
             </tr>
         </thead>
         <tbody>
@@ -54,10 +55,13 @@
                 <td>{{ progress.level }}</td>
                 <td>{{ progress.score }}</td>
                 <td>{{ progress.completed_at|date:"Y-m-d H:i" }}</td>
+                <td>
+                    <a href="{% url 'student_level_detail' progress.id %}" class="btn btn-sm btn-info">View</a>
+                </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="4">No activity recorded yet.</td>
+                <td colspan="5" class="text-center">No activity recorded yet.</td>
             </tr>
             {% endfor %}
         </tbody>

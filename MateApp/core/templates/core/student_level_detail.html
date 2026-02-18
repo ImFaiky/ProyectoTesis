@@ -1,0 +1,81 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary mb-3">&larr; Back to Dashboard</a>
+
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">Level Detail: {{ progress.level }}</h3>
+            <p class="mb-0">Student: <strong>{{ progress.user.username }}</strong></p>
+        </div>
+        <div class="card-body">
+            <div class="row text-center mb-4">
+                <div class="col-md-4">
+                    <div class="p-3 border rounded bg-light">
+                        <h5>Score</h5>
+                        <h2 class="text-primary">{{ progress.score }}</h2>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 border rounded bg-light">
+                        <h5>Stars</h5>
+                        <h2 class="text-warning">
+                            {% for i in "123"|make_list %}
+                            {% if forloop.counter <= progress.stars %} <i class="bi bi-star-fill"></i>
+                                {% else %}
+                                <i class="bi bi-star"></i>
+                                {% endif %}
+                                {% endfor %}
+                        </h2>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 border rounded bg-light">
+                        <h5>Date</h5>
+                        <p class="lead mb-0">{{ progress.completed_at|date:"M d, Y H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <h4 class="mb-3">Answer History</h4>
+
+            {% if progress.answers %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Question / Type</th>
+                            <th>Student Answer</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ans in progress.answers %}
+                        <tr class="{% if ans.correct %}table-success{% else %}table-danger{% endif %}">
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ ans.question }}</td>
+                            <td>{{ ans.user_answer }}</td>
+                            <td>
+                                {% if ans.correct %}
+                                <span class="badge bg-success">Correct</span>
+                                {% else %}
+                                <span class="badge bg-danger">Incorrect</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                No detailed answer history available for this attempt.
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

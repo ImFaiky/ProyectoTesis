@@ -9,6 +9,7 @@ urlpatterns = [
     # helper views
     path('students/', views.student_list, name='student_list'),
     path('students/add/', views.student_create, name='student_create'),
+    path('students/progress/<int:progress_id>/', views.student_level_detail, name='student_level_detail'),
 
     # Management Views
     path('manage/disciplines/', views.DisciplineListView.as_view(), name='discipline_list'),

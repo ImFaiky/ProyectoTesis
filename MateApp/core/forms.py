@@ -3,11 +3,18 @@ from .models import Discipline, Level
 import json
 
 DEFAULT_GAME_CONFIG = {
+    "questions": []
+}
+
+# Template structures for new questions
+QUESTION_TEMPLATES = {
     "cards": {
+        "type": "cards",
         "question": {"text": "", "audio": "", "correct_answer": ""},
         "options": [{"text": "", "icon": ""} for _ in range(4)]
     },
     "option": {
+        "type": "option",
         "question": {
             "text": "", "word": "", 
             "options": ["" for _ in range(4)], 
@@ -15,24 +22,30 @@ DEFAULT_GAME_CONFIG = {
         }
     },
     "dragDrop": {
+        "type": "dragDrop",
         "question": {"text": "", "correct_order": [], "options": [], "sentence": ""}
     },
     "matchingGame": {
+        "type": "matchingGame",
         "question": {"text": ""}, "pairs": []
     },
     "optionAudio": {
+        "type": "optionAudio",
         "question": {
             "text": "", "audio": "", "correct_answer": "", 
             "options": ["" for _ in range(4)]
         }
     },
     "speech": {
+        "type": "speech",
         "question": {"text": "", "audio": ""}, "options": []
     },
     "writing": {
+        "type": "writing",
         "question": {"text": "", "correct_answer": ""}
     },
     "complete_word": {
+        "type": "complete_word",
         "question": {
             "text": "", "word": "", "missing_letters": [], 
             "correct_answer": "", "question_word": ""

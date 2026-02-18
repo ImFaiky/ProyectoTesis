@@ -129,19 +129,21 @@ def discipline_detail(request, discipline_id):
 
 @login_required
 def play_level_simulation(request, level_id):
+    level = get_object_or_404(Level, id=level_id)
+
     if request.method == 'POST':
         if not is_student(request.user) and not request.user.is_superuser: # Allow superuser to test too
              messages.error(request, "Only students can save progress.")
              return redirect('dashboard')
 
-        level = get_object_or_404(Level, id=level_id)
         score = int(request.POST.get('score', 0))
         stars = int(request.POST.get('stars', 0))
         
         save_level_progress(request.user, level, score, stars)
         
         return redirect('discipline_detail', discipline_id=level.discipline.id)
-    return redirect('dashboard')
+    
+    return render(request, 'core/play_level.html', {'level': level})
 
 @login_required
 @user_passes_test(is_admin)

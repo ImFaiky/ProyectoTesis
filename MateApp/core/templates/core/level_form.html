@@ -76,22 +76,16 @@
 
                         <!-- Add Question Toolbar -->
                         <div class="card p-3 mt-4 border-primary border-2 shadow-sm">
+                            <label class="fw-bold text-primary mb-3"><i class="bi bi-plus-circle"></i> Add New Question:</label>
                             <div class="row g-2 align-items-center justify-content-center">
-                                <div class="col-auto">
-                                    <label class="fw-bold text-primary"><i class="bi bi-plus-circle"></i> Add New
-                                        Question:</label>
-                                </div>
                                 <div class="col-auto">
                                     <select id="questionTypeSelect" class="form-select form-select-sm"
                                         style="min-width: 200px;">
-                                        <option value="cards">Flashcards</option>
                                         <option value="option">Select Option</option>
+                                        <option value="cards">Flashcards</option>
+                                        <option value="writing">Writing</option>
                                         <option value="dragDrop">Drag & Drop</option>
                                         <option value="matchingGame">Matching Pairs</option>
-                                        <option value="optionAudio">Audio Options</option>
-                                        <option value="speech">Pronunciation</option>
-                                        <option value="writing">Writing</option>
-                                        <option value="complete_word">Complete Word</option>
                                     </select>
                                 </div>
                                 <div class="col-auto">
@@ -99,12 +93,137 @@
                                         onclick="addQuestion()">Add</button>
                                 </div>
                             </div>
+                            <div id="gameTypeHelp" class="mt-3 p-3 bg-white rounded border small">
+                                <div class="d-flex align-items-start">
+                                    <i class="bi bi-info-circle text-primary me-2 mt-1"></i>
+                                    <div id="gameTypeHelpText"></div>
+                                </div>
+                            </div>
                         </div>
 
                     </div>
+                </div>
+
+                <!-- Student Assignment Card -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center bg-white">
+                        <h6 class="m-0 font-weight-bold text-info">
+                            <i class="bi bi-people-fill me-2"></i>Asignar Estudiantes
+                        </h6>
+                        <span class="badge bg-info text-white" id="assignedCount">0 asignados</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Available Students Table -->
+                            <div class="col-lg-6 mb-3 mb-lg-0">
+                                <div class="card border-secondary h-100">
+                                    <div class="card-header bg-light py-2">
+                                        <h6 class="mb-0 text-secondary fw-bold">
+                                            <i class="bi bi-person-plus me-1"></i> Estudiantes Disponibles
+                                        </h6>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="p-2">
+                                            <input type="text" id="studentSearch" class="form-control form-control-sm"
+                                                placeholder="Buscar por nombre o email...">
+                                        </div>
+                                        <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                                            <table class="table table-hover table-sm mb-0" id="availableStudentsTable">
+                                                <thead class="table-light sticky-top">
+                                                    <tr>
+                                                        <th>Usuario</th>
+                                                        <th>Email</th>
+                                                        <th class="text-center" style="width: 90px;">Acción</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="availableStudentsBody">
+                                                    {% for student in all_students %}
+                                                    <tr data-student-id="{{ student.id }}"
+                                                        data-username="{{ student.username|lower }}"
+                                                        data-email="{{ student.email|lower }}"
+                                                        class="student-available-row {% if student.id in assigned_student_ids %}d-none{% endif %}">
+                                                        <td>
+                                                            <i class="bi bi-person-circle text-muted me-1"></i>
+                                                            {{ student.username }}
+                                                        </td>
+                                                        <td class="text-muted small">{{ student.email|default:"-" }}</td>
+                                                        <td class="text-center">
+                                                            <button type="button" class="btn btn-sm btn-outline-success py-0 px-2"
+                                                                onclick="assignStudent({{ student.id }}, '{{ student.username|escapejs }}', '{{ student.email|escapejs }}')">
+                                                                <i class="bi bi-plus-lg"></i> Agregar
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div class="text-center text-muted small p-2" id="noAvailableMsg" style="display:none;">
+                                            No hay estudiantes disponibles
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Assigned Students Table -->
+                            <div class="col-lg-6">
+                                <div class="card border-info h-100">
+                                    <div class="card-header bg-info bg-opacity-10 py-2">
+                                        <h6 class="mb-0 text-info fw-bold">
+                                            <i class="bi bi-person-check me-1"></i> Estudiantes Asignados
+                                        </h6>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive" style="max-height: 392px; overflow-y: auto;">
+                                            <table class="table table-hover table-sm mb-0" id="assignedStudentsTable">
+                                                <thead class="table-light sticky-top">
+                                                    <tr>
+                                                        <th>Usuario</th>
+                                                        <th>Email</th>
+                                                        <th class="text-center" style="width: 90px;">Acción</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="assignedStudentsBody">
+                                                    {% for student in all_students %}
+                                                    {% if student.id in assigned_student_ids %}
+                                                    <tr data-student-id="{{ student.id }}">
+                                                        <td>
+                                                            <i class="bi bi-person-check-fill text-info me-1"></i>
+                                                            {{ student.username }}
+                                                        </td>
+                                                        <td class="text-muted small">{{ student.email|default:"-" }}</td>
+                                                        <td class="text-center">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2"
+                                                                onclick="unassignStudent({{ student.id }})">
+                                                                <i class="bi bi-x-lg"></i> Quitar
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    {% endif %}
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div class="text-center text-muted small p-3" id="noAssignedMsg"
+                                            {% if assigned_student_ids %}style="display:none;"{% endif %}>
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            No se han asignado estudiantes aún
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden inputs container for assigned student IDs -->
+                        <div id="assignedInputsContainer">
+                            {% for sid in assigned_student_ids %}
+                            <input type="hidden" name="assigned_students" value="{{ sid }}" data-student-id="{{ sid }}">
+                            {% endfor %}
+                        </div>
+                    </div>
                     <div class="card-footer bg-white">
                         <button type="submit" class="btn btn-success btn-lg w-100 shadow-sm"><i class="bi bi-save"></i>
-                            Save Level</button>
+                            Guardar Nivel</button>
                     </div>
                 </div>
 
@@ -116,30 +235,60 @@
 <script>
     // Friendly names map
     const friendlyNames = {
-        "cards": "Flashcards",
         "option": "Select Option",
-        "dragDrop": "Drag & Drop",
-        "matchingGame": "Matching Pairs",
-        "optionAudio": "Audio Options",
-        "speech": "Pronunciation",
+        "cards": "Flashcards",
         "writing": "Writing",
-        "complete_word": "Complete Word"
+        "dragDrop": "Drag & Drop",
+        "matchingGame": "Matching Pairs"
+    };
+
+    // Tooltip descriptions with math examples for each game type
+    const gameTypeHelp = {
+        "option": {
+            "title": "Select Option (Multiple Choice)",
+            "desc": "The student sees a question and must select the correct answer from 4 options.",
+            "example": "<strong>Example:</strong> Question: \"What is 7 x 8?\" &rarr; Options: 48, 54, <u>56</u>, 64"
+        },
+        "cards": {
+            "title": "Flashcards",
+            "desc": "The student sees cards and must flip the one with the correct answer.",
+            "example": "<strong>Example:</strong> Question: \"Square root of 144\" &rarr; Cards: 10, <u>12</u>, 14, 16"
+        },
+        "writing": {
+            "title": "Writing (Type the Answer)",
+            "desc": "The student must type the correct answer. Great for calculations.",
+            "example": "<strong>Example:</strong> Question: \"Solve: 25 + 37 = ?\" &rarr; Correct answer: \"62\""
+        },
+        "dragDrop": {
+            "title": "Drag & Drop (Order)",
+            "desc": "The student must arrange items in the correct order by clicking them.",
+            "example": "<strong>Example:</strong> Question: \"Order from smallest to largest\" &rarr; Correct order: 3, 7, 15, 22"
+        },
+        "matchingGame": {
+            "title": "Matching Pairs",
+            "desc": "The student must match items from the left column with the right column.",
+            "example": "<strong>Example:</strong> 3 x 4 &harr; 12 &nbsp;|&nbsp; 5 x 6 &harr; 30 &nbsp;|&nbsp; 8 x 7 &harr; 56"
+        }
     };
 
     // Templates for new questions (mirrors python side)
     const questionTemplates = {
-        "cards": {
-            "type": "cards",
-            "question": { "text": "", "audio": "", "correct_answer": "" },
-            "options": [{ "text": "", "icon": "" }, { "text": "", "icon": "" }, { "text": "", "icon": "" }, { "text": "", "icon": "" }]
-        },
         "option": {
             "type": "option",
             "question": {
-                "text": "", "word": "",
+                "text": "",
                 "options": ["", "", "", ""],
                 "correct_answer": ""
             }
+        },
+        "cards": {
+            "type": "cards",
+            "question": { "text": "", "correct_answer": "" },
+            "options": [{ "text": "", "icon": "" }, { "text": "", "icon": "" }, { "text": "", "icon": "" }, { "text": "", "icon": "" }]
+        },
+        "writing": {
+            "type": "writing",
+            "question": { "text": "", "correct_answer": "" }
         },
         "dragDrop": {
             "type": "dragDrop",
@@ -148,29 +297,6 @@
         "matchingGame": {
             "type": "matchingGame",
             "question": { "text": "" }, "pairs": []
-        },
-        "optionAudio": {
-            "type": "optionAudio",
-            "question": {
-                "text": "", "audio": "", "correct_answer": "",
-                "options": ["", "", "", ""],
-                "correct_answer": ""
-            }
-        },
-        "speech": {
-            "type": "speech",
-            "question": { "text": "", "audio": "" }, "options": []
-        },
-        "writing": {
-            "type": "writing",
-            "question": { "text": "", "correct_answer": "" }
-        },
-        "complete_word": {
-            "type": "complete_word",
-            "question": {
-                "text": "", "word": "", "missing_letters": [],
-                "correct_answer": "", "question_word": ""
-            }
         }
     };
 
@@ -273,17 +399,6 @@
                 updateQ();
             }));
 
-            // Audio Field
-            if (data.question.hasOwnProperty('audio') || type === 'cards' || type === 'optionAudio' || type === 'speech') {
-                // Ensure audio field exists if logic expects it
-                if (data.question.audio === undefined) data.question.audio = "";
-
-                wrapper.appendChild(createInputRow('Audio URL', data.question.audio, (val) => {
-                    data.question.audio = val;
-                    updateQ();
-                }));
-            }
-
             // Sentence (DragDrop)
             if (type === 'dragDrop') {
                 if (data.question.sentence === undefined) data.question.sentence = "";
@@ -293,25 +408,7 @@
                 }));
             }
 
-            // Word (Option, CompleteWord)
-            if (type === 'option' || type === 'complete_word') {
-                if (data.question.word === undefined) data.question.word = "";
-                wrapper.appendChild(createInputRow('Target Word', data.question.word, (val) => {
-                    data.question.word = val;
-                    updateQ();
-                }));
-            }
-            // Question Word (Complete Word)
-            if (type === 'complete_word') {
-                if (data.question.question_word === undefined) data.question.question_word = "";
-                wrapper.appendChild(createInputRow('Question Word (Displayed)', data.question.question_word, (val) => {
-                    data.question.question_word = val;
-                    updateQ();
-                }));
-            }
-
             // Correct Answer (Simple Text)
-            // Writing, Option (set via radio), OptionAudio, Cards
             if (type === 'writing' || type === 'cards') {
                 if (data.question.correct_answer === undefined) data.question.correct_answer = "";
                 wrapper.appendChild(createInputRow('Correct Answer', data.question.correct_answer, (val) => {
@@ -338,7 +435,7 @@
                 wrapper.appendChild(row);
             });
         }
-        else if ((type === 'option' || type === 'optionAudio') && data.question && data.question.options) {
+        else if (type === 'option' && data.question && data.question.options) {
             wrapper.appendChild(createSectionHeader('Options List'));
             data.question.options.forEach((opt, idx) => {
                 const row = document.createElement('div');
@@ -385,15 +482,6 @@
                 initEditor(); // Re-render to show new pair
             };
             wrapper.appendChild(addBtn);
-        }
-        else if (type === 'complete_word' && data.question) {
-            wrapper.appendChild(createSectionHeader('Missing Letters'));
-            const list = data.question.missing_letters || [];
-            wrapper.appendChild(createInputRow('Letters (comma separated)', list.join(','), (val) => {
-                const arr = val.split(',').map(s => s.trim()).filter(s => s);
-                gameData.questions[qIndex].question.missing_letters = arr;
-                updateQ();
-            }));
         }
 
         return wrapper;
@@ -480,8 +568,98 @@
         jsonField.value = JSON.stringify(gameData, null, 2);
     }
 
+    // Show help text for selected game type
+    function updateGameTypeHelp() {
+        const select = document.getElementById('questionTypeSelect');
+        const helpDiv = document.getElementById('gameTypeHelpText');
+        const type = select.value;
+        const info = gameTypeHelp[type];
+        if (info) {
+            helpDiv.innerHTML = `<strong>${info.title}</strong><br>${info.desc}<br><span class="text-muted">${info.example}</span>`;
+        } else {
+            helpDiv.innerHTML = 'Select a game type to see its description.';
+        }
+    }
+
+    // ===== Student Assignment Logic =====
+
+    function assignStudent(id, username, email) {
+        // Hide from available table
+        const availableRow = document.querySelector('#availableStudentsBody tr[data-student-id="' + id + '"]');
+        if (availableRow) availableRow.classList.add('d-none');
+
+        // Add to assigned table
+        const assignedBody = document.getElementById('assignedStudentsBody');
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-student-id', id);
+        tr.innerHTML = '<td><i class="bi bi-person-check-fill text-info me-1"></i> ' + username + '</td>' +
+            '<td class="text-muted small">' + (email || '-') + '</td>' +
+            '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="unassignStudent(' + id + ')"><i class="bi bi-x-lg"></i> Quitar</button></td>';
+        assignedBody.appendChild(tr);
+
+        // Add hidden input
+        const container = document.getElementById('assignedInputsContainer');
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'assigned_students';
+        input.value = id;
+        input.setAttribute('data-student-id', id);
+        container.appendChild(input);
+
+        updateStudentCounts();
+    }
+
+    function unassignStudent(id) {
+        // Remove from assigned table
+        const assignedRow = document.querySelector(`#assignedStudentsBody tr[data-student-id="${id}"]`);
+        if (assignedRow) assignedRow.remove();
+
+        // Show in available table
+        const availableRow = document.querySelector(`#availableStudentsBody tr[data-student-id="${id}"]`);
+        if (availableRow) availableRow.classList.remove('d-none');
+
+        // Remove hidden input
+        const hiddenInput = document.querySelector(`#assignedInputsContainer input[data-student-id="${id}"]`);
+        if (hiddenInput) hiddenInput.remove();
+
+        updateStudentCounts();
+    }
+
+    function updateStudentCounts() {
+        const assignedRows = document.querySelectorAll('#assignedStudentsBody tr');
+        const count = assignedRows.length;
+        document.getElementById('assignedCount').textContent = count + ' asignados';
+        document.getElementById('noAssignedMsg').style.display = count === 0 ? '' : 'none';
+
+        // Check available visible rows
+        const visibleAvailable = document.querySelectorAll('#availableStudentsBody tr.student-available-row:not(.d-none):not(.search-hidden)');
+        document.getElementById('noAvailableMsg').style.display = visibleAvailable.length === 0 ? '' : 'none';
+    }
+
+    // Search / filter available students
+    document.getElementById('studentSearch').addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        const rows = document.querySelectorAll('#availableStudentsBody tr.student-available-row');
+        rows.forEach(row => {
+            const username = row.getAttribute('data-username') || '';
+            const email = row.getAttribute('data-email') || '';
+            const matches = username.includes(query) || email.includes(query);
+            if (matches) {
+                row.classList.remove('search-hidden');
+            } else {
+                row.classList.add('search-hidden');
+            }
+        });
+        updateStudentCounts();
+    });
+
     // Initialize
-    document.addEventListener('DOMContentLoaded', initEditor);
+    document.addEventListener('DOMContentLoaded', function() {
+        initEditor();
+        updateGameTypeHelp();
+        document.getElementById('questionTypeSelect').addEventListener('change', updateGameTypeHelp);
+        updateStudentCounts();
+    });
 </script>
 
 <style>
@@ -492,6 +670,10 @@
     .form-switch .form-check-input {
         width: 3em;
         height: 1.5em;
+    }
+
+    .search-hidden {
+        display: none !important;
     }
 </style>
 {% endblock %}

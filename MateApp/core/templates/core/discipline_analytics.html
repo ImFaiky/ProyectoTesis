@@ -1,0 +1,334 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+    </a>
+    <a href="{% url 'discipline_edit' discipline.pk %}" class="btn btn-outline-primary btn-sm ms-2">
+        <i class="bi bi-gear me-1"></i>Edit Discipline
+    </a>
+</div>
+
+<!-- Header -->
+<div class="analytics-header mb-4" data-color="{{ discipline.color }}">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <div class="d-flex align-items-center">
+                <div class="disc-icon-lg me-4">
+                    {% if discipline.icon %}
+                        <img src="{{ discipline.icon.url }}" alt="{{ discipline.name }}" width="60" height="60">
+                    {% else %}
+                        <i class="bi bi-book-fill"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <h1 class="text-white fw-bold mb-1">{{ discipline.name }}</h1>
+                    <p class="text-white-50 mb-0">{{ discipline.description|truncatewords:20 }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+            <div class="badge bg-white bg-opacity-25 text-white fs-6">
+                <i class="bi bi-layers me-1"></i>{{ total_levels }} Levels
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="stats-icon-sm bg-primary bg-opacity-10 mx-auto mb-2">
+                    <i class="bi bi-people-fill text-primary"></i>
+                </div>
+                <div class="h3 fw-bold mb-0">{{ unique_students }}</div>
+                <div class="small text-muted">Students</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="stats-icon-sm bg-success bg-opacity-10 mx-auto mb-2">
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                </div>
+                <div class="h3 fw-bold mb-0">{{ total_attempts }}</div>
+                <div class="small text-muted">Total Attempts</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="stats-icon-sm bg-warning bg-opacity-10 mx-auto mb-2">
+                    <i class="bi bi-star-fill text-warning"></i>
+                </div>
+                <div class="h3 fw-bold mb-0">{{ avg_stars }}</div>
+                <div class="small text-muted">Avg Stars</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="stats-icon-sm bg-info bg-opacity-10 mx-auto mb-2">
+                    <i class="bi bi-graph-up text-info"></i>
+                </div>
+                <div class="h3 fw-bold mb-0">{{ avg_score }}%</div>
+                <div class="small text-muted">Avg Score</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Level Performance Chart -->
+    <div class="col-lg-7 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-4">
+                <h5 class="fw-bold mb-0">
+                    <i class="bi bi-bar-chart text-primary me-2"></i>Level Performance
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="levelChart" height="280"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Level Breakdown Table -->
+    <div class="col-lg-5 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-4">
+                <h5 class="fw-bold mb-0">
+                    <i class="bi bi-layers text-info me-2"></i>Level Breakdown
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="border-0">Level</th>
+                                <th class="border-0 text-center">Students</th>
+                                <th class="border-0 text-center">Avg Score</th>
+                                <th class="border-0 text-center">Stars</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in level_stats %}
+                            <tr>
+                                <td>
+                                    <span class="fw-semibold">Level {{ stat.level.number }}</span>
+                                    <div class="small text-muted">{{ stat.attempts }} attempts</div>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary bg-opacity-10 text-primary">{{ stat.students }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="fw-semibold {% if stat.avg_score >= 80 %}text-success{% elif stat.avg_score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                        {{ stat.avg_score }}%
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="text-warning">
+                                        <i class="bi bi-star-fill"></i> {{ stat.avg_stars }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-muted">
+                                    No level data yet.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Student Ranking -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0 pt-4">
+        <h5 class="fw-bold mb-0">
+            <i class="bi bi-trophy text-warning me-2"></i>Student Ranking
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="border-0" style="width: 50px;">#</th>
+                        <th class="border-0">Student</th>
+                        <th class="border-0 text-center">Levels</th>
+                        <th class="border-0 text-center">Avg Score</th>
+                        <th class="border-0 text-center">Stars</th>
+                        <th class="border-0">Last Activity</th>
+                        <th class="border-0 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for data in students_in_discipline %}
+                    <tr>
+                        <td>
+                            {% if forloop.counter <= 3 %}
+                                <span class="badge {% if forloop.counter == 1 %}bg-warning{% elif forloop.counter == 2 %}bg-secondary{% else %}bg-danger bg-opacity-75{% endif %} rounded-circle p-2">
+                                    {{ forloop.counter }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted fw-semibold ms-2">{{ forloop.counter }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="me-2">
+                                    {% if data.student.avatar %}
+                                        <img src="{{ data.student.avatar.url }}" class="rounded-circle" width="35" height="35">
+                                    {% else %}
+                                        <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">
+                                            {{ data.student.username|first|upper }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <span class="fw-semibold">{{ data.student.username }}</span>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-success bg-opacity-10 text-success">{{ data.levels_completed }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold {% if data.avg_score >= 80 %}text-success{% elif data.avg_score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                {{ data.avg_score }}%
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="text-warning"><i class="bi bi-star-fill me-1"></i>{{ data.total_stars }}</span>
+                        </td>
+                        <td>
+                            {% if data.last_activity %}
+                                <div class="small">{{ data.last_activity|date:"M d, Y" }}</div>
+                                <div class="small text-muted">{{ data.last_activity|date:"H:i" }}</div>
+                            {% else %}
+                                <span class="text-muted small">No activity</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'student_profile' data.student.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                            <div class="mt-2">No students have attempted this discipline yet.</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.analytics-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.disc-icon-lg {
+    width: 70px;
+    height: 70px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: white;
+}
+
+.disc-icon-lg img {
+    border-radius: 12px;
+    object-fit: cover;
+}
+
+.stats-icon-sm {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+</style>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Apply header color from discipline
+    const header = document.querySelector('.analytics-header');
+    const color = header ? header.getAttribute('data-color') : null;
+    if (color && header) {
+        header.style.background = 'linear-gradient(135deg, ' + color + ' 0%, ' + color + '99 100%)';
+    }
+
+    // Level Performance Chart
+    const levelData = JSON.parse('{{ level_stats_json|escapejs }}');
+    
+    if (levelData.length > 0) {
+        const ctx = document.getElementById('levelChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: levelData.map(function(d) { return 'Level ' + d.level_number; }),
+                datasets: [{
+                    label: 'Avg Score',
+                    data: levelData.map(function(d) { return d.avg_score; }),
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    borderRadius: 6
+                }, {
+                    label: 'Students',
+                    data: levelData.map(function(d) { return d.students; }),
+                    backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                    borderColor: 'rgba(255, 193, 7, 1)',
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% endblock %}

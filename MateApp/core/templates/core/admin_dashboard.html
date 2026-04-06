@@ -1,70 +1,1080 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<h1 class="mb-4">Game Admin Dashboard</h1>
-
-<div class="row">
-    <div class="col-md-4">
-        <div class="card text-white bg-primary mb-3">
-            <div class="card-header">Students</div>
-            <div class="card-body">
-                <h5 class="card-title">{{ student_count }} Students</h5>
-                <p class="card-text">Manage student accounts.</p>
-                <a href="{% url 'student_list' %}" class="btn btn-light">Manage Students</a>
+<div class="dashboard-header mb-4">
+    <div class="header-particles" id="headerParticles"></div>
+    <div class="position-relative" style="z-index: 2;">
+        <div class="row align-items-center">
+            <div class="col-lg-7">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="header-avatar me-3">
+                        {% if user.avatar %}
+                            <img src="{{ user.avatar.url }}" alt="Avatar" class="rounded-circle" width="56" height="56" style="object-fit:cover; border: 3px solid rgba(255,255,255,0.4);">
+                        {% else %}
+                            <div class="rounded-circle bg-white bg-opacity-25 d-flex align-items-center justify-content-center" style="width:56px;height:56px;border:3px solid rgba(255,255,255,0.4);font-size:1.5rem;">
+                                {{ user.username|first|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h1 class="mb-0 fw-bold" style="font-size: 1.75rem;">
+                            Hello, {{ user.username }}!
+                        </h1>
+                        <p class="mb-0 opacity-75" style="font-size: 0.95rem;">Here's what's happening with your students today.</p>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card text-white bg-success mb-3">
-            <div class="card-header">Disciplines</div>
-            <div class="card-body">
-                <h5 class="card-title">{{ discipline_count }} Disciplines</h5>
-                <p class="card-text">Create and edit game categories.</p>
-                <a href="{% url 'discipline_list' %}" class="btn btn-light">Manage Disciplines</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card text-white bg-warning text-dark mb-3">
-            <div class="card-header">Levels</div>
-            <div class="card-body">
-                <h5 class="card-title">{{ level_count }} Levels</h5>
-                <p class="card-text">Configure levels and difficulties.</p>
-                <a href="{% url 'discipline_list' %}" class="btn btn-light">Manage Levels</a>
+            <div class="col-lg-5">
+                <div class="d-flex align-items-center justify-content-lg-end gap-3 flex-wrap">
+                    <div class="header-stat-pill">
+                        <i class="bi bi-people-fill me-1"></i> {{ student_count }} Students
+                    </div>
+                    <div class="header-stat-pill">
+                        <i class="bi bi-collection-fill me-1"></i> {{ discipline_count }} Disciplines
+                    </div>
+                    <div class="header-stat-pill live-pill">
+                        <span class="live-dot"></span> Live Data
+                    </div>
+                </div>
+                <div class="text-lg-end mt-2">
+                    <small class="opacity-50"><i class="bi bi-clock me-1"></i>{{ "now"|date:"l, M d Y \a\t H:i" }}</small>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="mt-4">
-    <h3>Recent Activity</h3>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>User</th>
-                <th>Level</th>
-                <th>Score</th>
-                <th>Date</th>
-                <th>Details</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for progress in recent_progress %}
-            <tr>
-                <td>{{ progress.user.username }}</td>
-                <td>{{ progress.level }}</td>
-                <td>{{ progress.score }}</td>
-                <td>{{ progress.completed_at|date:"Y-m-d H:i" }}</td>
-                <td>
-                    <a href="{% url 'student_level_detail' progress.id %}" class="btn btn-sm btn-info">View</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5" class="text-center">No activity recorded yet.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- Stats Cards with Modern Design -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-0 shadow-sm stats-card stats-card-primary">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="small fw-bold text-primary text-uppercase mb-1">Students</div>
+                        <div class="h3 mb-0 fw-bold">{{ student_count }}</div>
+                        <div class="small text-muted">Active learners</div>
+                    </div>
+                    <div class="ms-3">
+                        <div class="stats-icon bg-primary bg-opacity-10">
+                            <i class="bi bi-people-fill text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0">
+                <div class="d-flex align-items-center justify-content-between">
+                    <a href="{% url 'student_list' %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-right me-1"></i>Manage
+                    </a>
+                    <div class="small text-success">
+                        <i class="bi bi-graph-up"></i> 12% from last month
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-0 shadow-sm stats-card stats-card-success">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="small fw-bold text-success text-uppercase mb-1">Disciplines</div>
+                        <div class="h3 mb-0 fw-bold">{{ discipline_count }}</div>
+                        <div class="small text-muted">Learning areas</div>
+                    </div>
+                    <div class="ms-3">
+                        <div class="stats-icon bg-success bg-opacity-10">
+                            <i class="bi bi-collection-fill text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0">
+                <div class="d-flex align-items-center justify-content-between">
+                    <a href="{% url 'discipline_list' %}" class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-arrow-right me-1"></i>Manage
+                    </a>
+                    <div class="small text-success">
+                        <i class="bi bi-graph-up"></i> 8% from last month
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-0 shadow-sm stats-card stats-card-warning">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="small fw-bold text-warning text-uppercase mb-1">Levels</div>
+                        <div class="h3 mb-0 fw-bold">{{ level_count }}</div>
+                        <div class="small text-muted">Challenge stages</div>
+                    </div>
+                    <div class="ms-3">
+                        <div class="stats-icon bg-warning bg-opacity-10">
+                            <i class="bi bi-layers-fill text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0">
+                <div class="d-flex align-items-center justify-content-between">
+                    <a href="{% url 'discipline_list' %}" class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-arrow-right me-1"></i>Manage
+                    </a>
+                    <div class="small text-info">
+                        <i class="bi bi-dash"></i> No change
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-0 shadow-sm stats-card stats-card-info">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="small fw-bold text-info text-uppercase mb-1">Avg Score</div>
+                        <div class="h3 mb-0 fw-bold">{{ overall_avg_score }}%</div>
+                        <div class="small text-muted">Performance rate</div>
+                    </div>
+                    <div class="ms-3">
+                        <div class="stats-icon bg-info bg-opacity-10">
+                            <i class="bi bi-trophy-fill text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0">
+                <div class="d-flex align-items-center justify-content-between">
+                    <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#avgScoreModal">
+                        <i class="bi bi-arrow-right me-1"></i>Details
+                    </button>
+                    <div class="small text-success">
+                        <i class="bi bi-trophy"></i> All-time avg
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+.stats-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+}
+
+.stats-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.dashboard-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #6B8DD6 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 8s ease infinite;
+    color: white;
+    padding: 2rem 2.5rem;
+    border-radius: 20px;
+    margin-bottom: 2rem;
+    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.35);
+    position: relative;
+    overflow: hidden;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.header-particles {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.header-particle {
+    position: absolute;
+    background: rgba(255,255,255,0.08);
+    border-radius: 50%;
+    animation: particleFloat 6s ease-in-out infinite;
+}
+
+@keyframes particleFloat {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 0.5; }
+    50% { transform: translateY(-20px) scale(1.1); opacity: 0.8; }
+}
+
+.header-stat-pill {
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(8px);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid rgba(255,255,255,0.15);
+    white-space: nowrap;
+}
+
+.live-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.live-dot {
+    width: 8px;
+    height: 8px;
+    background: #34d399;
+    border-radius: 50%;
+    display: inline-block;
+    animation: livePulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(52, 211, 153, 0.6);
+}
+
+@keyframes livePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.chart-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+    height: 350px;
+}
+
+.chart-container canvas {
+    max-height: 280px !important;
+}
+
+.chart-container:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.table-modern {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.table-modern thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.table-modern tbody tr:hover {
+    background-color: #f8f9fa;
+    transition: background-color 0.2s ease;
+}
+
+.badge-modern {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.progress-modern {
+    height: 8px;
+    border-radius: 4px;
+    background-color: #e9ecef;
+}
+
+.progress-bar-modern {
+    border-radius: 4px;
+}
+</style>
+
+<!-- Charts Section -->
+<div class="charts-section">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">
+            <i class="bi bi-bar-chart-line text-primary me-2"></i>
+            Analytics Overview
+        </h2>
+        <div class="btn-group" role="group" id="periodBtnGroup">
+            <button type="button" class="btn btn-outline-primary btn-sm period-btn active" data-period="today">Today</button>
+            <button type="button" class="btn btn-outline-primary btn-sm period-btn" data-period="week">Week</button>
+            <button type="button" class="btn btn-outline-primary btn-sm period-btn" data-period="month">Month</button>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Student Points Chart -->
+        <div class="col-lg-6 mb-4">
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-trophy text-warning me-2"></i>
+                        Top Performers
+                    </h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'export_students' %}"><i class="bi bi-download me-2"></i>Export Data</a></li>
+                            <li><a class="dropdown-item" href="{% url 'student_list' %}"><i class="bi bi-eye me-2"></i>View Details</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <canvas id="studentPointsChart" height="300"></canvas>
+            </div>
+        </div>
+        
+        <!-- Discipline Performance Chart -->
+        <div class="col-lg-6 mb-4">
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-radar text-info me-2"></i>
+                        Discipline Analysis
+                    </h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'export_disciplines' %}"><i class="bi bi-download me-2"></i>Export Data</a></li>
+                            <li><a class="dropdown-item" href="{% url 'discipline_list' %}"><i class="bi bi-eye me-2"></i>View Details</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <canvas id="disciplineChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Score Distribution Chart -->
+        <div class="col-lg-6 mb-4">
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-pie-chart text-success me-2"></i>
+                        Score Distribution
+                    </h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'export_scores' %}"><i class="bi bi-download me-2"></i>Export Data</a></li>
+                            <li><a class="dropdown-item" href="{% url 'student_list' %}"><i class="bi bi-eye me-2"></i>View Details</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <canvas id="scoreDistributionChart" height="300"></canvas>
+            </div>
+        </div>
+        
+        <!-- Stars Progress Chart -->
+        <div class="col-lg-6 mb-4">
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-star text-warning me-2"></i>
+                        Tendencia de Estrellas
+                    </h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'export_scores' %}"><i class="bi bi-download me-2"></i>Export Data</a></li>
+                            <li><a class="dropdown-item" href="{% url 'student_list' %}"><i class="bi bi-eye me-2"></i>View Details</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <canvas id="starsChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Student Progress Report -->
+<div class="progress-section">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">
+            <i class="bi bi-people text-primary me-2"></i>
+            Student Progress Report
+        </h2>
+        <div class="d-flex gap-2">
+            <div class="input-group" style="width: 250px;">
+                <input type="text" id="studentSearchInput" class="form-control form-control-sm" placeholder="Search students...">
+                <button class="btn btn-outline-secondary btn-sm" type="button" onclick="document.getElementById('studentSearchInput').focus()">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+            <a href="{% url 'export_students' %}" class="btn btn-primary btn-sm">
+                <i class="bi bi-download me-1"></i>Export
+            </a>
+        </div>
+    </div>
+    
+    <div class="table-modern">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="studentProgressTable">
+                <thead>
+                    <tr>
+                        <th class="border-0">
+                            <div class="d-flex align-items-center">
+                                Student
+                                <i class="bi bi-arrow-down-up ms-2 small"></i>
+                            </div>
+                        </th>
+                        <th class="border-0">Total Points</th>
+                        <th class="border-0">Levels</th>
+                        <th class="border-0">Stars</th>
+                        <th class="border-0">Performance</th>
+                        <th class="border-0">Last Activity</th>
+                        <th class="border-0 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for data in student_progress_data %}
+                    <tr class="border-0">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm me-3">
+                                    {% if data.student.avatar %}
+                                        <img src="{{ data.student.avatar.url }}" alt="Avatar" class="rounded-circle" width="40" height="40">
+                                    {% else %}
+                                        <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                            {{ data.student.username|first|upper }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">{{ data.student.username }}</div>
+                                    <div class="small text-muted">ID: {{ data.student.id }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge-modern bg-primary bg-opacity-10 text-primary">
+                                {{ data.student.total_points }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ data.levels_completed }}</div>
+                            <div class="small text-muted">completed</div>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                {% for i in "12345"|make_list %}
+                                    {% if i|add:0 <= data.total_stars %}
+                                        <i class="bi bi-star-fill text-warning me-1"></i>
+                                    {% else %}
+                                        <i class="bi bi-star text-muted me-1"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                <span class="small text-muted ms-1">({{ data.total_stars }})</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="progress progress-modern mb-1">
+                                <div class="progress-bar progress-bar-modern bg-success" data-progress="{{ data.avg_score }}"></div>
+                            </div>
+                            <div class="small text-muted">{{ data.avg_score }}%</div>
+                        </td>
+                        <td>
+                            {% if data.last_activity %}
+                                <div class="small">{{ data.last_activity|date:"M d, Y" }}</div>
+                                <div class="small text-muted">{{ data.last_activity|date:"H:i" }}</div>
+                            {% else %}
+                                <span class="text-muted">No activity</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'student_profile' data.student.pk %}"><i class="bi bi-eye me-2"></i>View Profile</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'student_edit' data.student.pk %}"><i class="bi bi-pencil me-2"></i>Edit</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="{% url 'student_delete' data.student.pk %}"><i class="bi bi-trash me-2"></i>Remove</a></li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+                            <div class="text-muted mt-2">No student progress data available.</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Top Performers -->
+<div class="top-performers-section">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">
+            <i class="bi bi-trophy text-warning me-2"></i>
+            Top Performers
+        </h2>
+        <a href="{% url 'student_list' %}" class="btn btn-outline-primary btn-sm">
+            View All Students <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+    
+    <div class="row">
+        {% for student in top_students %}
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm performer-card h-100">
+                <div class="card-body text-center">
+                    <div class="position-relative d-inline-block mb-3">
+                        {% if student.avatar %}
+                            <img src="{{ student.avatar.url }}" alt="{{ student.username }}" class="rounded-circle performer-avatar" width="70" height="70">
+                        {% else %}
+                            <div class="rounded-circle bg-gradient-primary text-white d-inline-flex align-items-center justify-content-center performer-avatar">
+                                {{ student.username|first|upper }}
+                            </div>
+                        {% endif %}
+                        {% if forloop.counter0 == 0 %}
+                        <div class="position-absolute top-0 start-100 translate-middle">
+                            <span class="badge bg-warning rounded-circle p-2">
+                                <i class="bi bi-crown-fill"></i>
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <h6 class="fw-semibold mb-1">{{ student.username }}</h6>
+                    <div class="mb-2">
+                        <span class="badge bg-warning bg-opacity-10 text-warning fw-semibold">
+                            <i class="bi bi-star-fill me-1"></i>{{ student.total_points }} pts
+                        </span>
+                    </div>
+                    <div class="small text-muted">
+                        <i class="bi bi-layers me-1"></i>Level {{ student.current_level }}
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <a href="{% url 'student_profile' student.pk %}" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="bi bi-person me-1"></i>Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Discipline Performance -->
+<div class="discipline-section">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">
+            <i class="bi bi-collection text-info me-2"></i>
+            Discipline Performance
+        </h2>
+        <a href="{% url 'discipline_list' %}" class="btn btn-outline-primary btn-sm">
+            Manage Disciplines <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+    
+    <div class="row">
+        {% for perf in discipline_performance %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm discipline-card h-100">
+                <div class="card-header border-0 bg-transparent pt-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h5 class="fw-bold mb-1">{{ perf.discipline.name }}</h5>
+                            <div class="small text-muted">{{ perf.total_attempts }} total attempts</div>
+                        </div>
+                        <div class="discipline-icon" data-discipline-color="{{ perf.discipline.color }}">
+                            <i class="bi bi-book"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="discipline-metric">
+                                <div class="h4 fw-bold mb-0">{{ perf.unique_students }}</div>
+                                <div class="small text-muted">Students</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="discipline-metric">
+                                <div class="h4 fw-bold mb-0 text-warning">
+                                    <i class="bi bi-star-fill"></i> {{ perf.avg_stars|floatformat:1 }}
+                                </div>
+                                <div class="small text-muted">Avg Stars</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="discipline-metric">
+                                <div class="h4 fw-bold mb-0 text-success">{{ perf.avg_score|floatformat:0 }}%</div>
+                                <div class="small text-muted">Avg Score</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress bars for visual representation -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted">Performance</span>
+                            <span class="small fw-semibold">{{ perf.avg_score|floatformat:0 }}%</span>
+                        </div>
+                        <div class="progress progress-modern">
+                            <div class="progress-bar progress-bar-modern bg-success" data-progress="{{ perf.avg_score }}"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted">Engagement</span>
+                            <span class="small fw-semibold">{{ perf.unique_students }} students</span>
+                        </div>
+                        <div class="progress progress-modern">
+                            <div class="progress-bar progress-bar-modern bg-info" data-engagement="{{ perf.unique_students }}"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0">
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'discipline_analytics' perf.discipline.id %}" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="bi bi-graph-up me-1"></i>Analytics
+                        </a>
+                        <a href="{% url 'discipline_edit' perf.discipline.pk %}" class="btn btn-sm btn-outline-secondary flex-fill">
+                            <i class="bi bi-gear me-1"></i>Settings
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.performer-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+}
+
+.performer-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+}
+
+.performer-avatar {
+    width: 70px;
+    height: 70px;
+    object-fit: cover;
+    border: 3px solid #f8f9fa;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.discipline-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+}
+
+.discipline-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1) !important;
+}
+
+.discipline-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.discipline-metric {
+    padding: 0.5rem;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    transition: background-color 0.2s ease;
+}
+
+.discipline-metric:hover {
+    background-color: #e9ecef;
+}
+</style>
+
+<!-- Avg Score Details Modal -->
+<div class="modal fade" id="avgScoreModal" tabindex="-1" aria-labelledby="avgScoreModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-info bg-opacity-10 border-0">
+                <h5 class="modal-title fw-bold" id="avgScoreModalLabel">
+                    <i class="bi bi-trophy-fill text-info me-2"></i>Score Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-4">
+                    <div class="col-md-4 text-center">
+                        <div class="display-4 fw-bold text-info">{{ overall_avg_score }}%</div>
+                        <div class="text-muted">Overall Average</div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="display-4 fw-bold text-primary">{{ student_count }}</div>
+                        <div class="text-muted">Total Students</div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="display-4 fw-bold text-success">{{ discipline_count }}</div>
+                        <div class="text-muted">Disciplines</div>
+                    </div>
+                </div>
+                <h6 class="fw-bold mb-3"><i class="bi bi-bar-chart me-2"></i>Average Score by Discipline</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Discipline</th>
+                                <th>Avg Score</th>
+                                <th>Attempts</th>
+                                <th>Students</th>
+                                <th>Progress</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for perf in discipline_performance %}
+                            <tr>
+                                <td>
+                                    <span class="fw-bold">{{ perf.discipline.name }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge {% if perf.avg_score >= 80 %}bg-success{% elif perf.avg_score >= 50 %}bg-warning{% else %}bg-danger{% endif %} rounded-pill">
+                                        {{ perf.avg_score|floatformat:1 }}%
+                                    </span>
+                                </td>
+                                <td>{{ perf.total_attempts }}</td>
+                                <td>{{ perf.unique_students }}</td>
+                                <td style="width: 200px;">
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar {% if perf.avg_score >= 80 %}bg-success{% elif perf.avg_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ perf.avg_score|floatformat:0 }}%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">No data available yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <h6 class="fw-bold mb-3 mt-4"><i class="bi bi-people me-2"></i>Top Students by Avg Score</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Student</th>
+                                <th>Avg Score</th>
+                                <th>Levels Completed</th>
+                                <th>Stars</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for data in student_progress_data|slice:":10" %}
+                            <tr>
+                                <td><span class="badge bg-light text-dark border">{{ forloop.counter }}</span></td>
+                                <td class="fw-bold">{{ data.student.username }}</td>
+                                <td>
+                                    <span class="badge {% if data.avg_score >= 80 %}bg-success{% elif data.avg_score >= 50 %}bg-warning{% else %}bg-danger{% endif %} rounded-pill">
+                                        {{ data.avg_score }}%
+                                    </span>
+                                </td>
+                                <td>{{ data.levels_completed }}</td>
+                                <td>
+                                    <span class="text-warning">
+                                        {% for i in "123"|make_list %}
+                                            {% if forloop.counter <= data.total_stars %}
+                                                <i class="bi bi-star-fill"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                        {{ data.total_stars }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">No student data available.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <a href="{% url 'export_scores' %}" class="btn btn-outline-info">
+                    <i class="bi bi-download me-1"></i>Export Scores
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Header floating particles
+    var particleContainer = document.getElementById('headerParticles');
+    if (particleContainer) {
+        for (var p = 0; p < 8; p++) {
+            var particle = document.createElement('div');
+            particle.className = 'header-particle';
+            var size = Math.random() * 60 + 20;
+            particle.style.width = size + 'px';
+            particle.style.height = size + 'px';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.top = Math.random() * 100 + '%';
+            particle.style.animationDelay = (Math.random() * 4) + 's';
+            particle.style.animationDuration = (Math.random() * 4 + 4) + 's';
+            particleContainer.appendChild(particle);
+        }
+    }
+
+    // Student search filter
+    var searchInput = document.getElementById('studentSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            var filter = this.value.toLowerCase();
+            var table = document.getElementById('studentProgressTable');
+            var rows = table.querySelectorAll('tbody tr');
+            var visibleCount = 0;
+            rows.forEach(function(row) {
+                var text = row.textContent.toLowerCase();
+                if (text.indexOf(filter) > -1) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Apply dynamic styles from data attributes
+    // Progress bars
+    document.querySelectorAll('[data-progress]').forEach(function(element) {
+        const progress = element.getAttribute('data-progress');
+        element.style.width = progress + '%';
+    });
+    
+    // Engagement bars
+    document.querySelectorAll('[data-engagement]').forEach(function(element) {
+        const engagement = element.getAttribute('data-engagement');
+        element.style.width = (engagement * 10) + '%';
+    });
+    
+    // Discipline icons
+    document.querySelectorAll('[data-discipline-color]').forEach(function(element) {
+        const color = element.getAttribute('data-discipline-color');
+        element.style.backgroundColor = color + '20';
+        element.style.color = color;
+    });
+    
+    // Chart defaults
+    Chart.defaults.font.family = 'system-ui, -apple-system, sans-serif';
+    
+    // Prepare initial data from JSON
+    var studentProgressData = {{ student_progress_json|safe }};
+    var disciplinePerformanceData = {{ discipline_performance_json|safe }};
+    
+    // Chart references
+    var studentPointsChart, disciplineChart, scoreDistributionChart, starsChart;
+    
+    function buildStudentPointsChart(sData) {
+        var ctx = document.getElementById('studentPointsChart').getContext('2d');
+        if (studentPointsChart) studentPointsChart.destroy();
+        studentPointsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sData.map(function(d) { return d.username || (d.student && d.student.username) || ''; }),
+                datasets: [{
+                    label: 'Total Points',
+                    data: sData.map(function(d) { return d.total_points || (d.student && d.student.total_points) || 0; }),
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+    
+    function buildDisciplineChart(dData) {
+        var ctx = document.getElementById('disciplineChart').getContext('2d');
+        if (disciplineChart) disciplineChart.destroy();
+        disciplineChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: dData.map(function(d) { return d.name || (d.discipline && d.discipline.name) || ''; }),
+                datasets: [{
+                    label: 'Average Score',
+                    data: dData.map(function(d) { return parseFloat(d.avg_score) || 0; }),
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'rgba(255, 99, 132, 1)'
+                }, {
+                    label: 'Average Stars',
+                    data: dData.map(function(d) { return (parseFloat(d.avg_stars) || 0) * 20; }),
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'rgba(54, 162, 235, 1)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { r: { beginAtZero: true, max: 100 } }
+            }
+        });
+    }
+    
+    function buildScoreDistChart(sData) {
+        var ctx = document.getElementById('scoreDistributionChart').getContext('2d');
+        if (scoreDistributionChart) scoreDistributionChart.destroy();
+        var ranges = {'0-20': 0, '21-40': 0, '41-60': 0, '61-80': 0, '81-100': 0};
+        sData.forEach(function(d) {
+            var avg = parseFloat(d.avg_score) || 0;
+            if (avg <= 20) ranges['0-20']++;
+            else if (avg <= 40) ranges['21-40']++;
+            else if (avg <= 60) ranges['41-60']++;
+            else if (avg <= 80) ranges['61-80']++;
+            else ranges['81-100']++;
+        });
+        scoreDistributionChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(ranges),
+                datasets: [{
+                    data: Object.values(ranges),
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(255, 159, 64, 0.8)',
+                        'rgba(255, 205, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(54, 162, 235, 0.8)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+    
+    function buildStarsChart(sData) {
+        var ctx = document.getElementById('starsChart').getContext('2d');
+        if (starsChart) starsChart.destroy();
+        starsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: sData.map(function(d) { return d.username || (d.student && d.student.username) || ''; }),
+                datasets: [{
+                    label: 'Total Stars',
+                    data: sData.map(function(d) { return d.total_stars || 0; }),
+                    backgroundColor: 'rgba(255, 205, 86, 0.2)',
+                    borderColor: 'rgba(255, 205, 86, 1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: 'rgba(255, 205, 86, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+    
+    // Build initial charts with all-time data
+    buildStudentPointsChart(studentProgressData.map(function(d) {
+        return { username: d.student.username, total_points: d.student.total_points, avg_score: d.avg_score, total_stars: d.total_stars };
+    }));
+    buildDisciplineChart(disciplinePerformanceData.map(function(d) {
+        return { name: d.discipline.name, avg_score: d.avg_score, avg_stars: d.avg_stars };
+    }));
+    buildScoreDistChart(studentProgressData.map(function(d) {
+        return { avg_score: d.avg_score };
+    }));
+    buildStarsChart(studentProgressData.map(function(d) {
+        return { username: d.student.username, total_stars: d.total_stars };
+    }));
+    
+    // Period buttons - fetch filtered data via AJAX
+    document.querySelectorAll('.period-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.period-btn').forEach(function(b) { b.classList.remove('active'); });
+            this.classList.add('active');
+            var period = this.getAttribute('data-period');
+            
+            fetch('{% url "dashboard_chart_data" %}?period=' + period)
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    buildStudentPointsChart(data.student_data);
+                    buildDisciplineChart(data.discipline_data);
+                    buildScoreDistChart(data.student_data);
+                    buildStarsChart(data.student_data);
+                })
+                .catch(function(err) { console.error('Error fetching chart data:', err); });
+        });
+    });
+});
+</script>
+{% endblock %}
 {% endblock %}

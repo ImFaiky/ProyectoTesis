@@ -17,6 +17,7 @@ class Level(models.Model):
     number = models.IntegerField()
     game_config = models.JSONField(default=dict, blank=True, help_text="Specific configuration for the game in this level")
     is_active = models.BooleanField(default=True)
+    assigned_students = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='assigned_levels')
 
     class Meta:
         ordering = ['discipline', 'number']
@@ -31,6 +32,8 @@ class UserLevelProgress(models.Model):
     score = models.IntegerField(default=0)
     stars = models.IntegerField(default=0)
     answers = models.JSONField(default=list, blank=True)
+    attempts = models.IntegerField(default=0)
+    best_time_seconds = models.IntegerField(null=True, blank=True, help_text="Best completion time in seconds")
     completed_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -42,3 +45,19 @@ class UserLevelProgress(models.Model):
     def save(self, *args, **kwargs):
         # Update user total points logic could be here or in a signal/service
         super().save(*args, **kwargs)
+
+
+class LevelAttempt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='level_attempts')
+    level = models.ForeignKey(Level, on_delete=models.CASCADE, related_name='attempts')
+    score = models.IntegerField(default=0)
+    stars = models.IntegerField(default=0)
+    time_seconds = models.IntegerField(default=0, help_text="Time spent on this attempt in seconds")
+    answers = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.level} - Attempt at {self.created_at:%Y-%m-%d %H:%M}"

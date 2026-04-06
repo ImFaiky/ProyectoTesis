@@ -7,9 +7,16 @@
 
 <div class="list-group">
     {% for level_data in levels_data %}
-    <div class="list-group-item d-flex justify-content-between align-items-center">
+    <div class="list-group-item d-flex justify-content-between align-items-center level-item {% if level_data.progress %}level-completed{% else %}level-pending{% endif %}">
         <div>
-            <h5 class="mb-1">Level {{ level_data.level.number }}</h5>
+            <h5 class="mb-1">
+                {% if level_data.progress %}
+                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                {% else %}
+                <i class="bi bi-circle text-danger me-1"></i>
+                {% endif %}
+                Level {{ level_data.level.number }}
+            </h5>
             {% if level_data.progress %}
             <span class="badge bg-success">Best Score: {{ level_data.progress.score }}</span>
             <span class="badge bg-warning text-dark">Stars: {{ level_data.progress.stars }}</span>
@@ -26,4 +33,28 @@
     <div class="list-group-item">No levels defined for this discipline.</div>
     {% endfor %}
 </div>
+
+<style>
+.level-item {
+    border-left: 5px solid transparent;
+    transition: all 0.2s ease;
+    margin-bottom: 4px;
+    border-radius: 8px;
+}
+
+.level-completed {
+    border-left-color: #28a745;
+    background-color: rgba(40, 167, 69, 0.05);
+}
+
+.level-pending {
+    border-left-color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+.level-item:hover {
+    transform: translateX(3px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+</style>
 {% endblock %}

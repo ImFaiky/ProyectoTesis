@@ -2,31 +2,90 @@
 {% load static %}
 
 {% block content %}
-<div class="container py-5">
-    <!-- Game Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="mb-0">{{ level.discipline.name }} - Level {{ level.number }}</h2>
-            <small class="text-muted">Question <span id="current-q-num">1</span> of <span
-                    id="total-q-num">--</span></small>
+<div class="container-fluid py-4">
+    <!-- Animated Background -->
+    <div class="animated-bg">
+        <div class="floating-shapes">
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+            <div class="shape shape-3"></div>
+            <div class="shape shape-4"></div>
+            <div class="shape shape-5"></div>
         </div>
-        <div class="text-end">
-            <h4 class="mb-0 text-primary">Score: <span id="score-display">0</span></h4>
-            <div id="stars-display" class="text-warning h5">
-                <i class="bi bi-star"></i>
-                <i class="bi bi-star"></i>
-                <i class="bi bi-star"></i>
+    </div>
+
+    <!-- Enhanced Game Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="game-header-card">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <div class="level-badge me-3">
+                                <span class="level-number">{{ level.number }}</span>
+                            </div>
+                            <div>
+                                <h2 class="game-title mb-1">{{ level.discipline.name }}</h2>
+                                <div class="progress-info">
+                                    <span class="current-question">Question <span id="current-q-num">1</span></span>
+                                    <span class="divider">of</span>
+                                    <span class="total-questions" id="total-q-num">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <div class="game-stats">
+                            <div class="stat-item">
+                                <div class="stat-icon stat-icon-time">
+                                    <i class="bi bi-stopwatch-fill"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="timer-display">00:00</div>
+                                    <div class="stat-label">Time</div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="bi bi-trophy-fill"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="score-display">0</div>
+                                    <div class="stat-label">Score</div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="bi bi-star-fill"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stars-display" id="stars-display">
+                                        <i class="bi bi-star"></i>
+                                        <i class="bi bi-star"></i>
+                                        <i class="bi bi-star"></i>
+                                    </div>
+                                    <div class="stat-label">Stars</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Game Container -->
-    <div class="card shadow-lg" style="min-height: 400px;">
-        <div class="card-body p-4 d-flex flex-column justify-content-center" id="game-container">
-            <!-- Dynamic Content Here -->
-            <div class="text-center">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
+    <!-- Enhanced Game Container -->
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="game-card" id="game-container">
+                <!-- Loading State -->
+                <div class="loading-screen">
+                    <div class="loading-animation">
+                        <div class="loader-circle"></div>
+                        <div class="loader-circle"></div>
+                        <div class="loader-circle"></div>
+                    </div>
+                    <h3 class="loading-text">Preparing your adventure...</h3>
                 </div>
             </div>
         </div>
@@ -38,6 +97,7 @@
         <input type="hidden" name="score" id="input-score">
         <input type="hidden" name="stars" id="input-stars">
         <input type="hidden" name="answers" id="input-answers">
+        <input type="hidden" name="time_seconds" id="input-time">
     </form>
 </div>
 
@@ -45,25 +105,62 @@
 {{ level.game_config|json_script:"game-config-data" }}
 
 <script>
-    // --- Game State ---
+    // --- Enhanced Game State ---
     let config = {};
     let questions = [];
     let currentIndex = 0;
     let score = 0;
-    let maxScore = 0; // To calculate stars
+    let maxScore = 0;
     let correctCount = 0;
-    let userAnswers = []; // Store { q_index, question_type, answer, correct }
+    let userAnswers = [];
+    let combo = 0;
+    let maxCombo = 0;
+    let gameStartTime = null;
+    let timerInterval = null;
+    let elapsedSeconds = 0;
+
+    // --- Sound Effects (using Web Audio API for simple sounds) ---
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playSound(frequency, duration, type = 'sine') {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = type;
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + duration);
+    }
+    
+    function playSuccessSound() {
+        playSound(523, 0.1); // C
+        setTimeout(() => playSound(659, 0.1), 100); // E
+        setTimeout(() => playSound(784, 0.2), 200); // G
+    }
+    
+    function playErrorSound() {
+        playSound(200, 0.3, 'sawtooth');
+    }
+    
+    function playClickSound() {
+        playSound(600, 0.05);
+    }
 
     // --- Inits ---
     document.addEventListener('DOMContentLoaded', () => {
         const scriptTag = document.getElementById('game-config-data');
         try {
             const raw = JSON.parse(scriptTag.textContent);
-            // Normalize Config (Old vs New)
             if (Array.isArray(raw.questions)) {
                 questions = raw.questions;
             } else {
-                // Legacy: Convert Dict to List
                 questions = [];
                 for (const [key, val] of Object.entries(raw)) {
                     if (val && (val.question || val.pairs)) {
@@ -78,35 +175,137 @@
         }
 
         if (questions.length === 0) {
-            document.getElementById('game-container').innerHTML = '<div class="text-center"><h3>No questions in this level yet!</h3><a href="{% url "dashboard" %}" class="btn btn-primary mt-3">Back</a></div>';
+            showEmptyState();
             return;
         }
 
-        // Initialize display
         document.getElementById('total-q-num').textContent = questions.length;
-        maxScore = questions.length * 10; // Assume 10 points per question for simplicity
+        maxScore = questions.length * 10;
 
-        startGame();
+        setTimeout(() => startGame(), 1000);
     });
+
+    function startTimer() {
+        gameStartTime = Date.now();
+        elapsedSeconds = 0;
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            elapsedSeconds = Math.floor((Date.now() - gameStartTime) / 1000);
+            const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+            const secs = String(elapsedSeconds % 60).padStart(2, '0');
+            document.getElementById('timer-display').textContent = `${mins}:${secs}`;
+        }, 1000);
+    }
+
+    function stopTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+        elapsedSeconds = Math.floor((Date.now() - gameStartTime) / 1000);
+        return elapsedSeconds;
+    }
+
+    function showEmptyState() {
+        const container = document.getElementById('game-container');
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="bi bi-emoji-frown"></i>
+                </div>
+                <h3>No questions in this level yet!</h3>
+                <p class="text-muted">Check back later for new challenges.</p>
+                <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-house-door me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        `;
+    }
 
     function startGame() {
         currentIndex = 0;
         score = 0;
         correctCount = 0;
+        combo = 0;
+        maxCombo = 0;
         userAnswers = [];
+        startTimer();
         updateStats();
         showQuestion(currentIndex);
     }
 
     function updateStats() {
-        document.getElementById('score-display').textContent = score;
+        // Animate score change
+        const scoreElement = document.getElementById('score-display');
+        const currentScore = parseInt(scoreElement.textContent);
+        animateValue(scoreElement, currentScore, score, 500);
+        
         document.getElementById('current-q-num').textContent = currentIndex + 1;
-
-        // Simple star logic visualization (just for show during game)
-        // Final calculation happens at end
+        
+        // Update stars with animation
+        updateStars();
     }
 
-    // --- Renderers ---
+    function animateValue(element, start, end, duration) {
+        // Cancel any previous animation on this element
+        if (element._scoreTimer) clearInterval(element._scoreTimer);
+
+        // Nothing to animate
+        if (start === end) {
+            element.textContent = end;
+            return;
+        }
+
+        const range = end - start;
+        const increment = range / (duration / 16);
+        let current = start;
+        
+        element._scoreTimer = setInterval(() => {
+            current += increment;
+            if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+                element.textContent = end;
+                clearInterval(element._scoreTimer);
+                element._scoreTimer = null;
+            } else {
+                element.textContent = Math.round(current);
+            }
+        }, 16);
+    }
+
+    function showScorePopup(points) {
+        const scoreEl = document.getElementById('score-display');
+        const popup = document.createElement('div');
+        popup.className = 'score-popup';
+        popup.textContent = `+${points}`;
+        scoreEl.parentElement.style.position = 'relative';
+        scoreEl.parentElement.appendChild(popup);
+        setTimeout(() => popup.remove(), 900);
+
+        // Bounce effect on the score number
+        scoreEl.classList.remove('score-bounce');
+        void scoreEl.offsetWidth; // force reflow to restart animation
+        scoreEl.classList.add('score-bounce');
+    }
+
+    function updateStars() {
+        const starsDisplay = document.getElementById('stars-display');
+        const percent = (score / maxScore) * 100;
+        let stars = 1;
+        if (percent > 60) stars = 3;
+        else if (percent > 30) stars = 2;
+        
+        let starsHTML = '';
+        for (let i = 0; i < 3; i++) {
+            if (i < stars) {
+                starsHTML += '<i class="bi bi-star-fill star-active"></i>';
+            } else {
+                starsHTML += '<i class="bi bi-star star-inactive"></i>';
+            }
+        }
+        starsDisplay.innerHTML = starsHTML;
+    }
+
+    // --- Enhanced Renderers ---
     function showQuestion(index) {
         if (index >= questions.length) {
             finishGame();
@@ -114,34 +313,29 @@
         }
 
         const container = document.getElementById('game-container');
-        container.innerHTML = ''; // Clear previous
+        container.innerHTML = '';
+        container.className = 'game-card question-enter';
 
         const qData = questions[index];
         const type = qData.type;
         const q = qData.question || {};
 
-        // Title / Question Text
+        // Question Header
         if (q.text) {
-            const title = document.createElement('h3');
-            title.className = "text-center mb-4";
-            title.textContent = q.text;
+            const title = document.createElement('div');
+            title.className = 'question-header';
+            title.innerHTML = `
+                <div class="question-text">${q.text}</div>
+                <div class="question-number">Question ${index + 1}</div>
+            `;
             container.appendChild(title);
         }
 
-        // Audio Helper
-        if (q.audio) {
-            const btn = document.createElement('button');
-            btn.className = "btn btn-info btn-sm mb-3 d-block mx-auto";
-            btn.innerHTML = '<i class="bi bi-volume-up-fill"></i> Play Audio';
-            btn.onclick = () => new Audio(q.audio).play(); // Basic implementation
-            container.appendChild(btn);
-        }
-
-        // Render specific type
+        // Content Area
         const contentDiv = document.createElement('div');
-        contentDiv.className = "w-100";
+        contentDiv.className = 'game-content';
 
-        if (type === 'option' || type === 'optionAudio' || type === 'speech') {
+        if (type === 'option') {
             renderOptionGame(contentDiv, qData);
         } else if (type === 'cards') {
             renderCardsGame(contentDiv, qData);
@@ -151,280 +345,232 @@
             renderWritingGame(contentDiv, qData);
         } else if (type === 'matchingGame') {
             renderMatchingGame(contentDiv, qData);
-        } else if (type === 'complete_word') {
-            renderCompleteWordGame(contentDiv, qData);
         } else {
-            contentDiv.innerHTML = `<p class="text-center text-danger">Unsupported game type: ${type}</p> <button class="btn btn-secondary" onclick="nextQuestion()">Skip</button>`;
+            contentDiv.innerHTML = `
+                <div class="unsupported-game">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <h3>Game type not supported</h3>
+                    <p>Type: ${type}</p>
+                    <button class="btn btn-secondary" onclick="nextQuestion()">Skip Question</button>
+                </div>
+            `;
         }
 
         container.appendChild(contentDiv);
         updateStats();
+        
+        // Trigger entrance animation
+        setTimeout(() => container.classList.add('question-enter-active'), 50);
     }
 
-    // -- Sub-Renderers --
-
+    // --- Enhanced Game Renderers ---
     function renderOptionGame(container, data) {
         const optionsDiv = document.createElement('div');
-        optionsDiv.className = "row g-3 justify-content-center";
+        optionsDiv.className = 'options-grid';
 
         const opts = data.question.options || [];
-        opts.forEach(opt => {
-            if (!opt) return; // Skip empty
-            const col = document.createElement('div');
-            col.className = "col-md-6 col-lg-3";
-            col.innerHTML = `
-                <button class="btn btn-outline-primary w-100 py-4 fw-bold fs-5 game-option-btn">
-                    ${opt}
-                </button>
+        opts.forEach((opt, index) => {
+            if (!opt) return;
+            
+            const optionCard = document.createElement('div');
+            optionCard.className = 'option-card';
+            optionCard.style.animationDelay = `${index * 0.1}s`;
+            
+            optionCard.innerHTML = `
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="bi bi-${getRandomIcon()}"></i>
+                    </div>
+                    <div class="card-text">${opt}</div>
+                </div>
+                <div class="card-glow"></div>
             `;
-            const btn = col.querySelector('button');
-            btn.onclick = () => checkAnswer(opt, data.question.correct_answer);
-            optionsDiv.appendChild(col);
+            
+            optionCard.onclick = () => {
+                playClickSound();
+                checkAnswer(opt, data.question.correct_answer);
+                optionCard.classList.add('selected');
+            };
+            
+            optionsDiv.appendChild(optionCard);
         });
+        
         container.appendChild(optionsDiv);
     }
 
     function renderCardsGame(container, data) {
-        // Cards usually implies options with images/icons
-        const optionsDiv = document.createElement('div');
-        optionsDiv.className = "row g-3 justify-content-center";
+        const cardsDiv = document.createElement('div');
+        cardsDiv.className = 'cards-grid';
 
         const opts = data.options || [];
-        opts.forEach(opt => {
-            // opt has {text, icon}
-            const col = document.createElement('div');
-            col.className = "col-6 col-md-3";
-
-            // Check if "icon" is a URL or a simple path. 
-            // Ideally we'd have proper image handling. For now assuming URL or text.
+        opts.forEach((opt, index) => {
+            const card = document.createElement('div');
+            card.className = 'game-card-item';
+            card.style.animationDelay = `${index * 0.15}s`;
+            
             let imgHtml = '';
             if (opt.icon) {
-                imgHtml = `<img src="${opt.icon}" class="img-fluid mb-2" style="max-height:100px; object-fit:contain;">`;
+                imgHtml = `<div class="card-image"><img src="${opt.icon}" alt="${opt.text}"></div>`;
             }
 
-            col.innerHTML = `
-                 <button class="btn btn-outline-secondary w-100 p-3 h-100 game-card-btn">
-                     ${imgHtml}
-                     <div class="fw-bold">${opt.text}</div>
-                 </button>
-             `;
-            const btn = col.querySelector('button');
-            // For cards, usually checking against correct_answer in question header
-            // OR checking if this specific card is the "correct" one.
-            // Standardizing: The question has 'correct_answer' which basically matches one of the options text.
-            btn.onclick = () => checkAnswer(opt.text, data.question.correct_answer);
-            optionsDiv.appendChild(col);
+            card.innerHTML = `
+                ${imgHtml}
+                <div class="card-label">${opt.text}</div>
+                <div class="card-back">
+                    <i class="bi bi-question-lg"></i>
+                </div>
+            `;
+            
+            card.onclick = () => {
+                playClickSound();
+                card.classList.add('flipped');
+                setTimeout(() => {
+                    checkAnswer(opt.text, data.question.correct_answer);
+                }, 600);
+            };
+            
+            cardsDiv.appendChild(card);
         });
-        container.appendChild(optionsDiv);
+        
+        container.appendChild(cardsDiv);
     }
 
     function renderWritingGame(container, data) {
         container.innerHTML = `
-            <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <input type="text" id="writing-input" class="form-control form-control-lg text-center mb-3" placeholder="Type answer here..." autocomplete="off">
-                    <button class="btn btn-success w-100" onclick="checkWritingAnswer('${data.question.correct_answer}')">Check</button>
+            <div class="writing-game">
+                <div class="writing-input-group">
+                    <div class="input-wrapper">
+                        <input type="text" id="writing-input" class="writing-input" placeholder="Type your answer here..." autocomplete="off">
+                        <div class="input-glow"></div>
+                    </div>
+                    <button class="writing-submit-btn" onclick="checkWritingAnswer('${data.question.correct_answer}')">
+                        <i class="bi bi-check-lg"></i>
+                        Check Answer
+                    </button>
+                </div>
+                <div class="writing-hint">
+                    <i class="bi bi-lightbulb"></i>
+                    Type your answer and click check!
                 </div>
             </div>
         `;
+        
+        // Focus input and add enter key support (must be deferred until element is in the DOM)
+        setTimeout(() => {
+            const writingInput = document.getElementById('writing-input');
+            if (writingInput) {
+                writingInput.focus();
+                writingInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        checkWritingAnswer(data.question.correct_answer);
+                    }
+                });
+            }
+        }, 100);
     }
 
-    function checkWritingAnswer(correct) {
-        const input = document.getElementById('writing-input').value.trim();
-        checkAnswer(input, correct);
-    }
-
-    function renderCompleteWordGame(container, data) {
-        // Show word with blanks
-        // question_word usually has the blanks e.g. "B_NA_A"
-        // missing_letters has ["A", "N"]
-        // OR we might just have `word` "BANANA" and `missing_letters` ["A", "N"]
-        // Let's assume `question.word` is the target "BANANA"
-        // We need to build a UI to fill it.
-
-        const target = data.question.word || "";
-        const displayed = data.question.question_word || target.replace(/[AEIOU]/g, '_'); // Fallback logic
-
-        container.innerHTML = `
-            <div class="text-center mb-4">
-                <h1 class="display-4 letter-spacing-large">${displayed}</h1>
-            </div>
-            <div class="row justify-content-center">
-                 <div class="col-md-6">
-                    <input type="text" id="complete-input" class="form-control form-control-lg text-center mb-3" placeholder="Type the complete word" autocomplete="off">
-                    <button class="btn btn-success w-100" onclick="checkWritingAnswer('${target}')">Check</button>
-                </div>
-            </div>
-         `;
-        // Note: could be improved with individual letter inputs
-    }
-
-    // Sortable generic implementation for dragDrop
     function renderDragDropGame(container, data) {
         const correctOrder = data.question.correct_order || [];
         const shuffled = data.question.options || [...correctOrder].sort(() => Math.random() - 0.5);
 
         container.innerHTML = `
-            <p class="text-center text-muted mb-3">Arrange in correct order:</p>
-            <div id="sortable-list" class="list-group col-md-6 mx-auto mb-3">
-                ${shuffled.map(item => `<div class="list-group-item list-group-item-action cursor-move">${item}</div>`).join('')}
+            <div class="drag-drop-game">
+                <div class="drop-zone" id="answer-zone">
+                    <div class="zone-placeholder">
+                        <i class="bi bi-hand-index"></i>
+                        <span>Click words to build your answer</span>
+                    </div>
+                </div>
+                <div class="source-zone" id="source-zone">
+                    ${shuffled.map((item, index) => `
+                        <button class="word-bubble" style="animation-delay: ${index * 0.1}s" onclick="moveToAnswer(this)">
+                            ${item}
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="game-actions">
+                    <button class="action-btn btn-reset" onclick="resetOrder()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                    <button class="action-btn btn-submit" onclick="checkOrderAnswerFromZone(['${correctOrder.join("','")}'])">
+                        <i class="bi bi-check-lg"></i> Listo
+                    </button>
+                </div>
             </div>
-            <div class="text-center">
-                <button class="btn btn-success" onclick="checkOrderAnswer()">Check Order</button>
-            </div>
-        `;
-
-        // Simple click-to-select substitution or verify strictly? 
-        // For simplicity: We will just verify the current text order.
-        // A real "Sortable" lib would be better but keeping it vanilla for now.
-        // We can add simple UP/DOWN buttons or just assume the user types it? 
-        // NO, user must interact. Let's make it clicking items moves them to a "Answer" box?
-
-        // Re-implementing with "Click to construct sentence" style
-        container.innerHTML = `
-             <div class="mb-4 p-3 border rounded bg-light text-center min-h-50" id="answer-zone" style="min-height:60px;">
-                <span class="text-muted fst-italic placeholder-text">Click words to build answer...</span>
-             </div>
-             
-             <div class="d-flex flex-wrap justify-content-center gap-2" id="source-zone">
-                ${shuffled.map(item => `<button class="btn btn-outline-dark" onclick="moveToAnswer(this)">${item}</button>`).join('')}
-             </div>
-
-             <div class="text-center mt-4">
-                  <button class="btn btn-warning me-2" onclick="resetOrder()">Reset</button>
-                  <button class="btn btn-success" onclick="checkOrderAnswerFromZone(['${correctOrder.join("','")}'])">Check</button>
-             </div>
         `;
     }
 
-    // Attached to window for inline onclicks
-    window.moveToAnswer = function (btn) {
-        const zone = document.getElementById('answer-zone');
-        // Remove placeholder
-        const ph = zone.querySelector('.placeholder-text');
-        if (ph) ph.remove();
-
-        // Move button
-        btn.onclick = () => { // Click to return
-            document.getElementById('source-zone').appendChild(btn);
-            btn.onclick = () => moveToAnswer(btn); // Restore handler
-        };
-        zone.appendChild(btn);
-    };
-
-    window.resetOrder = function () {
-        // Reload current question
-        showQuestion(currentIndex);
-    };
-
-    window.checkOrderAnswerFromZone = function (correctArr) {
-        const zone = document.getElementById('answer-zone');
-        const userItems = Array.from(zone.children).map(btn => btn.innerText.trim());
-
-        // Compare arrays
-        const isCorrect = JSON.stringify(userItems) === JSON.stringify(correctArr);
-
-        // Record Answer
-        recordAnswer(userItems.join(', '), isCorrect, 'dragDrop');
-
-        handleResult(isCorrect, isCorrect ? "Correct Order!" : "Wrong Order!");
-    };
-
-
     function renderMatchingGame(container, data) {
-        // Pairs: item1 - item2
-        // Show item1s on Left, item2s on Right (shuffled)
-        // Select one from left, one from right -> match
-
         const pairs = data.pairs || [];
         const lefts = pairs.map((p, i) => ({ val: p.item1, id: i }));
         const rights = pairs.map((p, i) => ({ val: p.item2, id: i })).sort(() => Math.random() - 0.5);
 
         container.innerHTML = `
-            <div class="row">
-                <div class="col-6" id="match-left">
-                    ${lefts.map(l => `<button class="btn btn-outline-primary w-100 mb-2 match-btn" data-side="left" data-id="${l.id}" onclick="selectMatch(this)">${l.val}</button>`).join('')}
+            <div class="matching-game">
+                <div class="matching-instructions">
+                    <i class="bi bi-link-45deg"></i>
+                    Match the items on both sides
                 </div>
-                <div class="col-6" id="match-right">
-                    ${rights.map(r => `<button class="btn btn-outline-info w-100 mb-2 match-btn" data-side="right" data-id="${r.id}" onclick="selectMatch(this)">${r.val}</button>`).join('')}
+                <div class="matching-columns">
+                    <div class="matching-column left-column" id="match-left">
+                        ${lefts.map(l => `
+                            <button class="match-item match-left" data-side="left" data-id="${l.id}" onclick="selectMatch(this)">
+                                <i class="bi bi-circle"></i>
+                                <span>${l.val}</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div class="matching-column right-column" id="match-right">
+                        ${rights.map(r => `
+                            <button class="match-item match-right" data-side="right" data-id="${r.id}" onclick="selectMatch(this)">
+                                <i class="bi bi-circle"></i>
+                                <span>${r.val}</span>
+                            </button>
+                        `).join('')}
+                    </div>
                 </div>
+                <div class="match-feedback" id="match-feedback"></div>
             </div>
-            <div class="text-center mt-3" id="match-feedback"></div>
-         `;
-        container.dataset.matchesfound = 0;
-        container.dataset.totalpairs = pairs.length;
+        `;
+        
+        container.querySelector('.matching-game').dataset.matchesfound = 0;
+        container.querySelector('.matching-game').dataset.totalpairs = pairs.length;
         window.selectedLeft = null;
         window.selectedRight = null;
     }
 
-    window.selectMatch = function (btn) {
-        const side = btn.dataset.side;
-        const id = btn.dataset.id;
-
-        // Visual select
-        const col = side === 'left' ? 'match-left' : 'match-right';
-        document.getElementById(col).querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        if (side === 'left') window.selectedLeft = btn;
-        else window.selectedRight = btn;
-
-        // Check if both selected
-        if (window.selectedLeft && window.selectedRight) {
-            const id1 = window.selectedLeft.dataset.id;
-            const id2 = window.selectedRight.dataset.id;
-
-            if (id1 === id2) {
-                // Match!
-                window.selectedLeft.className = "btn btn-success w-100 mb-2 disabled";
-                window.selectedRight.className = "btn btn-success w-100 mb-2 disabled";
-                window.selectedLeft.onclick = null;
-                window.selectedRight.onclick = null;
-
-                // Clear selection
-                window.selectedLeft = null;
-                window.selectedRight = null;
-
-                const container = document.getElementById('game-container').querySelector('.w-100'); // hacky selector
-                let found = parseInt(container.dataset.matchesfound) + 1;
-                container.dataset.matchesfound = found;
-
-                if (found >= parseInt(container.dataset.totalpairs)) {
-                    // Record completion
-                    recordAnswer("Completed all matches", true, 'matchingGame');
-                    handleResult(true, "All matched!");
-                }
-
-            } else {
-                // Miss
-                const feedback = document.getElementById('match-feedback');
-                feedback.innerText = "Try again!";
-                feedback.className = "text-danger";
-                setTimeout(() => {
-                    if (window.selectedLeft) window.selectedLeft.classList.remove('active');
-                    if (window.selectedRight) window.selectedRight.classList.remove('active');
-                    window.selectedLeft = null;
-                    window.selectedRight = null;
-                    feedback.innerText = "";
-                }, 1000);
-            }
-        }
+    // --- Helper Functions ---
+    function getRandomIcon() {
+        const icons = ['star', 'heart', 'gem', 'flower1', 'tree', 'cloud', 'sun', 'moon'];
+        return icons[Math.floor(Math.random() * icons.length)];
     }
 
-
-    // --- Core Logic ---
-
+    // --- Game Logic ---
     function checkAnswer(userAnswer, correctAnswer, type) {
         const isCorrect = userAnswer.toString().trim().toLowerCase() === correctAnswer.toString().trim().toLowerCase();
-
-        // If type is not passed, try to infer or just log
-        // Note: For option/cards/writing, we call checkAnswer directly. 
-        // We should pass 'type' from renderers or look it up.
-        // Simplified: The caller should pass type or we look up current question type
         const currentType = questions[currentIndex].type;
+        
+        if (isCorrect) {
+            score += 10;
+            correctCount++;
+            combo++;
+            maxCombo = Math.max(maxCombo, combo);
+            playSuccessSound();
+            updateStats();
+            showScorePopup(10);
+        } else {
+            combo = 0;
+            playErrorSound();
+        }
+        
         recordAnswer(userAnswer, isCorrect, currentType);
-
         handleResult(isCorrect);
+    }
+
+    function checkWritingAnswer(correct) {
+        const input = document.getElementById('writing-input') || document.getElementById('complete-input');
+        const userAnswer = input.value.trim();
+        checkAnswer(userAnswer, correct);
     }
 
     function recordAnswer(userAnswer, isCorrect, type) {
@@ -437,101 +583,1182 @@
     }
 
     function handleResult(isCorrect, customMsg) {
-        if (isCorrect) {
-            score += 10;
-            correctCount++;
-
-            // Show Success Modal/Alert then next
-            // Using simple alert for now or a custom overlay
-            showFeedback("Correct!", "success");
-        } else {
-            showFeedback(customMsg || "Incorrect", "danger");
-        }
+        const container = document.getElementById('game-container');
+        
+        // Create result overlay
+        const overlay = document.createElement('div');
+        overlay.className = `result-overlay ${isCorrect ? 'correct' : 'incorrect'}`;
+        
+        overlay.innerHTML = `
+            <div class="result-content">
+                <div class="result-icon">
+                    ${isCorrect ? 
+                        '<i class="bi bi-check-circle-fill"></i>' : 
+                        '<i class="bi bi-x-circle-fill"></i>'
+                    }
+                </div>
+                <h2 class="result-message">${customMsg || (isCorrect ? 'Correct!' : 'Incorrect')}</h2>
+                ${isCorrect && combo > 1 ? `<div class="combo-text">Combo x${combo}! 🔥</div>` : ''}
+                <button class="result-btn" onclick="nextQuestion()">
+                    Next Question <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        `;
+        
+        container.appendChild(overlay);
     }
 
-    function showFeedback(msg, type) {
-        // Create an overlay
-        const overlay = document.createElement('div');
-        overlay.style.position = 'absolute';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.width = '100%';
-        overlay.style.height = '100%';
-        overlay.style.backgroundColor = 'rgba(255,255,255,0.9)';
-        overlay.style.display = 'flex';
-        overlay.style.flexDirection = 'column';
-        overlay.style.justifyContent = 'center';
-        overlay.style.alignItems = 'center';
-        overlay.style.zIndex = '100';
-
-        overlay.innerHTML = `
-            <h1 class="text-${type} display-1 mb-4"><i class="bi bi-${type === 'success' ? 'check-circle' : 'x-circle'}"></i></h1>
-            <h2 class="text-${type}">${msg}</h2>
-            <button class="btn btn-primary btn-lg mt-4">Next Question</button>
-        `;
-
-        const cardBody = document.getElementById('game-container');
-        // temporarily relative pos
-        cardBody.style.position = 'relative';
-        cardBody.appendChild(overlay);
-
-        const btn = overlay.querySelector('button');
-        btn.onclick = () => {
-            currentIndex++;
-            showQuestion(currentIndex);
-        };
-        btn.focus();
+    function nextQuestion() {
+        currentIndex++;
+        showQuestion(currentIndex);
     }
 
     function finishGame() {
+        const finalTime = stopTimer();
         const container = document.getElementById('game-container');
-
-        // Calculate Stars
-        // 0-30% = 1 star, 30-70% = 2 stars, >70% = 3 stars
         const percent = (score / maxScore) * 100;
         let stars = 1;
         if (percent > 60) stars = 3;
         else if (percent > 30) stars = 2;
+        const mins = String(Math.floor(finalTime / 60)).padStart(2, '0');
+        const secs = String(finalTime % 60).padStart(2, '0');
 
         container.innerHTML = `
-            <div class="text-center">
-                <h2 class="mb-4">Level Complete!</h2>
-                <div class="display-1 text-warning mb-3">
-                    ${'<i class="bi bi-star-fill"></i>'.repeat(stars)}
-                    ${'<i class="bi bi-star"></i>'.repeat(3 - stars)}
-                </div>
-                <h3>Score: ${score} / ${maxScore}</h3>
-                <p class="lead">Great job!</p>
-                <div class="mt-4">
-                     <button onclick="submitResults(${score}, ${stars})" class="btn btn-primary btn-lg px-5">Continue</button>
+            <div class="completion-screen">
+                <div class="completion-content">
+                    <div class="completion-header">
+                        <h2 class="completion-title">Level Complete!</h2>
+                        <div class="stars-display">
+                            ${Array.from({length: 3}, (_, i) => 
+                                `<i class="bi bi-${i < stars ? 'star-fill star-gold' : 'star star-gray'}"></i>`
+                            ).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="completion-stats">
+                        <div class="stat-row">
+                            <span class="stat-label">Final Score</span>
+                            <span class="stat-value">${score} / ${maxScore}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Accuracy</span>
+                            <span class="stat-value">${Math.round(percent)}%</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Best Combo</span>
+                            <span class="stat-value">${maxCombo}x</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Time</span>
+                            <span class="stat-value">${mins}:${secs}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="completion-message">
+                        ${percent >= 80 ? '🎉 Outstanding!' : 
+                          percent >= 60 ? '🌟 Great job!' : 
+                          percent >= 40 ? '👍 Good effort!' : 
+                          '💪 Keep practicing!'}
+                    </div>
+                    
+                    <button class="completion-btn" onclick="submitResults(${score}, ${stars})">
+                        <i class="bi bi-trophy"></i>
+                        Continue to Dashboard
+                    </button>
                 </div>
             </div>
         `;
+        
+        // Play completion sound
+        playSuccessSound();
+        setTimeout(() => playSuccessSound(), 200);
+        setTimeout(() => playSuccessSound(), 400);
     }
 
     function submitResults(finalScore, finalStars) {
         document.getElementById('input-score').value = finalScore;
         document.getElementById('input-stars').value = finalStars;
         document.getElementById('input-answers').value = JSON.stringify(userAnswers);
+        document.getElementById('input-time').value = elapsedSeconds;
         document.getElementById('game-form').submit();
     }
 
+    // Global functions for inline onclick handlers
+    window.nextQuestion = nextQuestion;
+    window.submitResults = submitResults;
+    window.checkWritingAnswer = checkWritingAnswer;
+
+    window.moveToAnswer = function(btn) {
+        playClickSound();
+        const zone = document.getElementById('answer-zone');
+        const placeholder = zone.querySelector('.zone-placeholder');
+        if (placeholder) placeholder.remove();
+
+        btn.onclick = () => {
+            playClickSound();
+            document.getElementById('source-zone').appendChild(btn);
+            btn.onclick = () => moveToAnswer(btn);
+        };
+        zone.appendChild(btn);
+    };
+
+    window.resetOrder = function() {
+        playClickSound();
+        showQuestion(currentIndex);
+    };
+
+    window.checkOrderAnswerFromZone = function(correctArr) {
+        const zone = document.getElementById('answer-zone');
+        const userItems = Array.from(zone.children).map(btn => btn.innerText.trim());
+        const isCorrect = JSON.stringify(userItems) === JSON.stringify(correctArr);
+        
+        if (isCorrect) {
+            score += 10;
+            correctCount++;
+            combo++;
+            maxCombo = Math.max(maxCombo, combo);
+            playSuccessSound();
+            updateStats();
+            showScorePopup(10);
+        } else {
+            combo = 0;
+            playErrorSound();
+        }
+
+        recordAnswer(userItems.join(', '), isCorrect, 'dragDrop');
+        handleResult(isCorrect, isCorrect ? "Perfect Order!" : "Wrong Order!");
+    };
+
+    window.selectMatch = function(btn) {
+        playClickSound();
+        const side = btn.dataset.side;
+        const id = btn.dataset.id;
+
+        const col = side === 'left' ? 'match-left' : 'match-right';
+        document.getElementById(col).querySelectorAll('.match-item').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        if (side === 'left') window.selectedLeft = btn;
+        else window.selectedRight = btn;
+
+        if (window.selectedLeft && window.selectedRight) {
+            const id1 = window.selectedLeft.dataset.id;
+            const id2 = window.selectedRight.dataset.id;
+
+            if (id1 === id2) {
+                playSuccessSound();
+                window.selectedLeft.classList.add('matched');
+                window.selectedRight.classList.add('matched');
+                window.selectedLeft.onclick = null;
+                window.selectedRight.onclick = null;
+
+                window.selectedLeft = null;
+                window.selectedRight = null;
+
+                const container = document.getElementById('game-container').querySelector('.matching-game');
+                let found = parseInt(container.dataset.matchesfound) + 1;
+                container.dataset.matchesfound = found;
+
+                // Score per pair
+                const totalPairs = parseInt(container.dataset.totalpairs);
+                const pointsPerPair = Math.round(10 / totalPairs) || 1;
+                score += pointsPerPair;
+                correctCount++;
+                combo++;
+                maxCombo = Math.max(maxCombo, combo);
+                updateStats();
+                showScorePopup(pointsPerPair);
+
+                if (found >= totalPairs) {
+                    recordAnswer("Completed all matches", true, 'matchingGame');
+                    handleResult(true, "All matched perfectly!");
+                }
+            } else {
+                combo = 0;
+                playErrorSound();
+                const feedback = document.getElementById('match-feedback');
+                feedback.innerHTML = '<i class="bi bi-x-circle"></i> Try again!';
+                feedback.className = 'match-feedback incorrect';
+                
+                setTimeout(() => {
+                    if (window.selectedLeft) window.selectedLeft.classList.remove('active');
+                    if (window.selectedRight) window.selectedRight.classList.remove('active');
+                    window.selectedLeft = null;
+                    window.selectedRight = null;
+                    feedback.innerHTML = '';
+                    feedback.className = 'match-feedback';
+                }, 1500);
+            }
+        }
+    };
 </script>
 
 <style>
-    .cursor-move {
-        cursor: move;
-    }
+/* --- Animated Background --- */
+.animated-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    overflow: hidden;
+}
 
-    .letter-spacing-large {
-        letter-spacing: 0.2em;
-    }
+.floating-shapes {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
 
-    .game-option-btn:hover {
-        background-color: #f8f9fa;
-        color: #0d6efd;
-        transition: all 0.2s;
+.shape {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    animation: float 20s infinite ease-in-out;
+}
+
+.shape-1 { width: 80px; height: 80px; left: 10%; animation-delay: 0s; }
+.shape-2 { width: 60px; height: 60px; left: 70%; animation-delay: 2s; }
+.shape-3 { width: 100px; height: 100px; left: 40%; animation-delay: 4s; }
+.shape-4 { width: 40px; height: 40px; left: 80%; animation-delay: 6s; }
+.shape-5 { width: 120px; height: 120px; left: 20%; animation-delay: 8s; }
+
+@keyframes float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    33% { transform: translateY(-100px) rotate(120deg); }
+    66% { transform: translateY(-50px) rotate(240deg); }
+}
+
+/* --- Game Header --- */
+.game-header-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.level-badge {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 5px 15px rgba(238, 90, 36, 0.3);
+}
+
+.level-number {
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.game-title {
+    color: #2c3e50;
+    font-weight: 700;
+    margin: 0;
+}
+
+.progress-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.current-question {
+    color: #3498db;
+    font-weight: 600;
+}
+
+.divider {
+    color: #bdc3c7;
+}
+
+.total-questions {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.game-stats {
+    display: flex;
+    gap: 30px;
+    justify-content: flex-end;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.stat-icon {
+    width: 45px;
+    height: 45px;
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+    box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+}
+
+.stat-icon-time {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2c3e50;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #7f8c8d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stars-display {
+    display: flex;
+    gap: 4px;
+}
+
+.star-active {
+    color: #f1c40f;
+    font-size: 18px;
+}
+
+.star-inactive {
+    color: #ecf0f1;
+    font-size: 18px;
+}
+
+/* --- Game Container --- */
+.game-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    min-height: 400px;
+    position: relative;
+    overflow: hidden;
+}
+
+.question-enter {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+.question-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: all 0.5s ease;
+}
+
+/* --- Loading Screen --- */
+.loading-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+}
+
+.loading-animation {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.loader-circle {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.loader-circle:nth-child(1) { animation-delay: -0.32s; }
+.loader-circle:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+    0%, 80%, 100% {
+        transform: scale(0);
+        opacity: 0.5;
     }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.loading-text {
+    color: #7f8c8d;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+/* --- Question Header --- */
+.question-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.question-text {
+    font-size: 24px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.question-number {
+    color: #7f8c8d;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* --- Options Grid --- */
+.options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.option-card {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid #ecf0f1;
+    position: relative;
+    overflow: hidden;
+    animation: slideInUp 0.5s ease forwards;
+    opacity: 0;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.option-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    border-color: #3498db;
+}
+
+.option-card.selected {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    transform: scale(0.95);
+}
+
+.card-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+}
+
+.card-icon {
+    font-size: 32px;
+    color: #3498db;
+    margin-bottom: 10px;
+}
+
+.option-card.selected .card-icon {
+    color: white;
+}
+
+.card-text {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.card-glow {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.option-card:hover .card-glow {
+    opacity: 1;
+}
+
+/* --- Cards Grid --- */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.game-card-item {
+    aspect-ratio: 1;
+    background: white;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.6s ease;
+    border: 2px solid #ecf0f1;
+    position: relative;
+    transform-style: preserve-3d;
+    animation: slideInUp 0.5s ease forwards;
+    opacity: 0;
+}
+
+.game-card-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.game-card-item.flipped {
+    transform: rotateY(180deg);
+}
+
+.card-image {
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.card-image img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.card-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+    text-align: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    backface-visibility: hidden;
+}
+
+.card-back {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    border-radius: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: white;
+    transform: rotateY(180deg);
+    backface-visibility: hidden;
+}
+
+/* --- Writing Game --- */
+.writing-game {
+    max-width: 500px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.writing-input-group {
+    margin-bottom: 20px;
+}
+
+.input-wrapper {
+    position: relative;
+    margin-bottom: 15px;
+}
+
+.writing-input {
+    width: 100%;
+    padding: 18px 20px;
+    font-size: 18px;
+    border: 2px solid #ecf0f1;
+    border-radius: 15px;
+    text-align: center;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.writing-input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.input-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 15px;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+}
+
+.writing-input:focus + .input-glow {
+    opacity: 0.1;
+}
+
+.writing-submit-btn {
+    background: linear-gradient(135deg, #27ae60, #229954);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 15px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+}
+
+.writing-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+}
+
+.writing-hint {
+    color: #7f8c8d;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* --- Drag Drop Game --- */
+.drag-drop-game {
+    text-align: center;
+}
+
+.drop-zone {
+    min-height: 80px;
+    background: rgba(52, 152, 219, 0.1);
+    border: 2px dashed #3498db;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    transition: all 0.3s ease;
+}
+
+.zone-placeholder {
+    color: #7f8c8d;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+}
+
+.source-zone {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.word-bubble {
+    background: white;
+    border: 2px solid #ecf0f1;
+    border-radius: 20px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    animation: slideInUp 0.5s ease forwards;
+    opacity: 0;
+}
+
+.word-bubble:hover {
+    background: #3498db;
+    color: white;
+    border-color: #3498db;
+    transform: translateY(-2px);
+}
+
+.game-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.action-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-reset {
+    background: #95a5a6;
+    color: white;
+}
+
+.btn-reset:hover {
+    background: #7f8c8d;
+    transform: translateY(-2px);
+}
+
+.btn-submit {
+    background: linear-gradient(135deg, #27ae60, #229954);
+    color: white;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+}
+
+/* --- Matching Game --- */
+.matching-game {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.matching-instructions {
+    text-align: center;
+    color: #7f8c8d;
+    font-size: 16px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.matching-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 20px;
+}
+
+.matching-column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.match-item {
+    background: white;
+    border: 2px solid #ecf0f1;
+    border-radius: 12px;
+    padding: 15px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.match-item:hover {
+    border-color: #3498db;
+    transform: translateX(5px);
+}
+
+.match-item.active {
+    background: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+.match-item.matched {
+    background: linear-gradient(135deg, #27ae60, #229954);
+    color: white;
+    border-color: #27ae60;
+    cursor: default;
+}
+
+.match-item i {
+    font-size: 12px;
+}
+
+.match-feedback {
+    text-align: center;
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.match-feedback.incorrect {
+    color: #e74c3c;
+}
+
+/* --- Result Overlay --- */
+.result-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.result-overlay.correct {
+    background: rgba(39, 174, 96, 0.95);
+}
+
+.result-overlay.incorrect {
+    background: rgba(231, 76, 60, 0.95);
+}
+
+.result-content {
+    text-align: center;
+    color: white;
+}
+
+.result-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    animation: bounceIn 0.5s ease;
+}
+
+@keyframes bounceIn {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.result-message {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.combo-text {
+    font-size: 18px;
+    margin-bottom: 20px;
+    animation: pulse 1s ease infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.result-btn {
+    background: white;
+    color: #2c3e50;
+    border: none;
+    border-radius: 25px;
+    padding: 15px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.result-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* --- Completion Screen --- */
+.completion-screen {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.completion-content {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.completion-header {
+    margin-bottom: 30px;
+}
+
+.completion-title {
+    font-size: 36px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+.completion-stats {
+    background: rgba(52, 152, 219, 0.1);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 25px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(52, 152, 219, 0.2);
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    color: #7f8c8d;
+    font-weight: 500;
+}
+
+.stat-value {
+    color: #2c3e50;
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.completion-message {
+    font-size: 20px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 30px;
+}
+
+.completion-btn {
+    background: linear-gradient(135deg, #f1c40f, #f39c12);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 18px 40px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 20px rgba(241, 196, 15, 0.3);
+}
+
+.completion-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(241, 196, 15, 0.4);
+}
+
+.star-gold {
+    color: #f1c40f;
+    font-size: 32px;
+}
+
+.star-gray {
+    color: #ecf0f1;
+    font-size: 32px;
+}
+
+/* --- Empty State --- */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-icon {
+    font-size: 64px;
+    color: #bdc3c7;
+    margin-bottom: 20px;
+}
+
+.empty-state h3 {
+    color: #7f8c8d;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    color: #95a5a6;
+    margin-bottom: 20px;
+}
+
+/* --- Unsupported Game --- */
+.unsupported-game {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.unsupported-game i {
+    font-size: 48px;
+    color: #e74c3c;
+    margin-bottom: 15px;
+}
+
+.unsupported-game h3 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.unsupported-game p {
+    color: #7f8c8d;
+    margin-bottom: 20px;
+}
+
+/* --- Score Popup Animation --- */
+.score-popup {
+    position: absolute;
+    top: -10px;
+    right: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #27ae60;
+    pointer-events: none;
+    animation: scoreFloat 0.9s ease forwards;
+    z-index: 10;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+@keyframes scoreFloat {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(-25px) scale(1.3);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.8);
+    }
+}
+
+.stat-value.score-bounce {
+    animation: scoreBounce 0.4s ease;
+}
+
+@keyframes scoreBounce {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.3); color: #27ae60; }
+    100% { transform: scale(1); }
+}
+
+/* --- Responsive Design --- */
+@media (max-width: 768px) {
+    .game-header-card {
+        padding: 20px;
+    }
+    
+    .level-badge {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .level-number {
+        font-size: 20px;
+    }
+    
+    .game-title {
+        font-size: 18px;
+    }
+    
+    .game-stats {
+        gap: 20px;
+        justify-content: center;
+        margin-top: 15px;
+    }
+    
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+    
+    .stat-value {
+        font-size: 20px;
+    }
+    
+    .game-card {
+        padding: 25px;
+    }
+    
+    .question-text {
+        font-size: 20px;
+    }
+    
+    .options-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .word-text {
+        font-size: 32px;
+        letter-spacing: 4px;
+    }
+    
+    .matching-columns {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .completion-title {
+        font-size: 28px;
+    }
+}
 </style>
 
 {% endblock %}

@@ -15,6 +15,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Level Number</th>
+                        <th>Estudiantes</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -23,6 +24,9 @@
                     {% for level in levels %}
                     <tr>
                         <td class="fw-bold">Level {{ level.number }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ level.assigned_students.count }}</span>
+                        </td>
                         <td>
                             {% if level.is_active %}
                             <span class="badge bg-success">Active</span>
@@ -39,7 +43,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="3" class="text-center py-4">No levels found.</td>
+                        <td colspan="4" class="text-center py-4">No levels found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

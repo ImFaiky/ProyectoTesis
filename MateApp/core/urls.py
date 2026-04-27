@@ -36,6 +36,7 @@ urlpatterns = [
 
     # AJAX
     path('api/chart-data/', views.dashboard_chart_data, name='dashboard_chart_data'),
+    path('api/upload-question-image/', views.upload_question_image, name='upload_question_image'),
     
     # Exports
     path('export/students/', views.export_students_csv, name='export_students'),

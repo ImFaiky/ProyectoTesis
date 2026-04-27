@@ -53,7 +53,11 @@ class LevelForm(forms.ModelForm):
 
     class Meta:
         model = Level
-        fields = ['number', 'is_active']
+        fields = ['number', 'is_active', 'theme', 'time_limit_seconds']
+        widgets = {
+            'theme': forms.Select(attrs={'class': 'form-select', 'id': 'id_theme'}),
+            'time_limit_seconds': forms.NumberInput(attrs={'class': 'form-control', 'min': 30, 'step': 30}),
+        }
 
     def __init__(self, *args, **kwargs):
         discipline = kwargs.pop('discipline', None)

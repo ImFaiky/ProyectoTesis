@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - MateApp</title>
+    <title>Registro - MateApp</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -153,9 +153,10 @@
             padding: 3rem;
             background: #fafbff;
             position: relative;
+            overflow-y: auto;
         }
 
-        .login-card {
+        .register-card {
             width: 100%;
             max-width: 420px;
             animation: slide-in 0.6s ease-out;
@@ -166,32 +167,32 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .login-header {
-            margin-bottom: 2rem;
+        .register-header {
+            margin-bottom: 1.5rem;
         }
 
-        .login-header h2 {
+        .register-header h2 {
             font-size: 1.75rem;
             font-weight: 700;
             color: #1a1a2e;
             margin-bottom: 0.5rem;
         }
 
-        .login-header p {
+        .register-header p {
             color: #6b7280;
             font-size: 0.95rem;
         }
 
         .form-floating-custom {
             position: relative;
-            margin-bottom: 1.25rem;
+            margin-bottom: 1rem;
         }
 
         .form-floating-custom label {
             font-size: 0.85rem;
             font-weight: 600;
             color: #374151;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.4rem;
             display: block;
         }
 
@@ -212,7 +213,7 @@
 
         .input-wrapper input {
             width: 100%;
-            padding: 14px 16px 14px 48px;
+            padding: 12px 16px 12px 48px;
             border: 2px solid #e5e7eb;
             border-radius: 12px;
             font-size: 0.95rem;
@@ -225,11 +226,6 @@
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        }
-
-        .input-wrapper input:focus ~ .input-icon,
-        .input-wrapper input:focus + .input-icon {
-            color: #667eea;
         }
 
         .input-wrapper.focused .input-icon {
@@ -256,30 +252,7 @@
             background: rgba(102, 126, 234, 0.1);
         }
 
-        .remember-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .custom-check {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            color: #4b5563;
-        }
-
-        .custom-check input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: #667eea;
-            cursor: pointer;
-        }
-
-        .login-btn {
+        .register-btn {
             width: 100%;
             padding: 14px;
             border: none;
@@ -296,9 +269,10 @@
             gap: 8px;
             position: relative;
             overflow: hidden;
+            margin-top: 0.5rem;
         }
 
-        .login-btn::before {
+        .register-btn::before {
             content: '';
             position: absolute;
             top: 0;
@@ -309,27 +283,23 @@
             transition: left 0.5s;
         }
 
-        .login-btn:hover::before {
-            left: 100%;
-        }
+        .register-btn:hover::before { left: 100%; }
 
-        .login-btn:hover {
+        .register-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
         }
 
-        .login-btn:active {
-            transform: translateY(0);
-        }
+        .register-btn:active { transform: translateY(0); }
 
-        .login-btn:disabled {
+        .register-btn:disabled {
             opacity: 0.7;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
 
-        .login-btn .spinner {
+        .register-btn .spinner {
             display: none;
             width: 20px;
             height: 20px;
@@ -339,12 +309,10 @@
             animation: spin 0.8s linear infinite;
         }
 
-        .login-btn.loading .spinner { display: block; }
-        .login-btn.loading .btn-text { display: none; }
+        .register-btn.loading .spinner { display: block; }
+        .register-btn.loading .btn-text { display: none; }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         .error-alert {
             background: #fef2f2;
@@ -352,12 +320,21 @@
             color: #991b1b;
             padding: 12px 16px;
             border-radius: 12px;
-            margin-bottom: 1.25rem;
+            margin-bottom: 1rem;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 10px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             animation: shake 0.4s ease;
+        }
+
+        .error-alert ul {
+            margin: 0;
+            padding-left: 16px;
+        }
+
+        .error-alert li {
+            margin-bottom: 2px;
         }
 
         @keyframes shake {
@@ -366,11 +343,24 @@
             75% { transform: translateX(8px); }
         }
 
+        .name-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
         .footer-text {
             text-align: center;
-            margin-top: 2rem;
+            margin-top: 1.5rem;
             color: #9ca3af;
             font-size: 0.85rem;
+        }
+
+        .password-help {
+            font-size: 0.78rem;
+            color: #9ca3af;
+            margin-top: 4px;
+            line-height: 1.4;
         }
 
         /* Mobile responsive */
@@ -380,7 +370,7 @@
                 padding: 2rem 1.5rem;
                 background: linear-gradient(180deg, #667eea 0%, #764ba2 30%, #fafbff 30%);
             }
-            .login-card {
+            .register-card {
                 background: white;
                 padding: 2rem;
                 border-radius: 20px;
@@ -397,6 +387,10 @@
                 font-size: 2rem;
                 border-radius: 18px;
                 margin: 0;
+            }
+            .name-row {
+                grid-template-columns: 1fr;
+                gap: 0;
             }
         }
 
@@ -415,23 +409,23 @@
                 <i class="bi bi-calculator"></i>
             </div>
             <h1 class="brand-title">MateApp</h1>
-            <p class="brand-subtitle">Learn Math Through Play</p>
+            <p class="brand-subtitle">Aprende Matemáticas Jugando</p>
             <ul class="feature-list">
                 <li>
                     <div class="feature-icon"><i class="bi bi-controller"></i></div>
-                    <span>Interactive math games & challenges</span>
+                    <span>Juegos y retos matemáticos interactivos</span>
                 </li>
                 <li>
                     <div class="feature-icon"><i class="bi bi-graph-up-arrow"></i></div>
-                    <span>Track your progress in real-time</span>
+                    <span>Sigue tu progreso en tiempo real</span>
                 </li>
                 <li>
                     <div class="feature-icon"><i class="bi bi-trophy"></i></div>
-                    <span>Earn stars and climb the leaderboard</span>
+                    <span>Gana estrellas y sube de nivel</span>
                 </li>
                 <li>
                     <div class="feature-icon"><i class="bi bi-people"></i></div>
-                    <span>Designed for students & teachers</span>
+                    <span>Diseñado para estudiantes y profesores</span>
                 </li>
             </ul>
         </div>
@@ -439,22 +433,34 @@
 
     <!-- Right Panel - Form -->
     <div class="form-panel">
-        <div class="login-card">
+        <div class="register-card">
             <div class="mobile-logo">
                 <div class="brand-logo">
                     <i class="bi bi-calculator" style="color: white;"></i>
                 </div>
             </div>
 
-            <div class="login-header">
-                <h2>Welcome back!</h2>
-                <p>Sign in to continue your learning journey</p>
+            <div class="register-header">
+                <h2><i class="bi bi-person-plus me-2"></i>Crear cuenta</h2>
+                <p>Regístrate para empezar tu aventura matemática</p>
             </div>
 
             {% if form.errors %}
             <div class="error-alert">
-                <i class="bi bi-exclamation-circle-fill" style="font-size: 1.2rem;"></i>
-                <span>Invalid username or password. Please try again.</span>
+                <i class="bi bi-exclamation-circle-fill" style="font-size: 1.2rem; margin-top: 2px;"></i>
+                <div>
+                    <strong>Por favor corrige los siguientes errores:</strong>
+                    <ul>
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                    </ul>
+                </div>
             </div>
             {% endif %}
 
@@ -467,53 +473,78 @@
                 {% endfor %}
             {% endif %}
 
-            <form method="post" id="loginForm">
+            <form method="post" id="registerForm">
                 {% csrf_token %}
 
+                <div class="name-row">
+                    <div class="form-floating-custom">
+                        <label for="id_first_name">Nombre</label>
+                        <div class="input-wrapper">
+                            <i class="bi bi-person input-icon"></i>
+                            <input type="text" name="first_name" id="id_first_name" placeholder="Tu nombre" required
+                                   value="{{ form.first_name.value|default:'' }}">
+                        </div>
+                    </div>
+
+                    <div class="form-floating-custom">
+                        <label for="id_last_name">Apellido</label>
+                        <div class="input-wrapper">
+                            <i class="bi bi-person input-icon"></i>
+                            <input type="text" name="last_name" id="id_last_name" placeholder="Tu apellido" required
+                                   value="{{ form.last_name.value|default:'' }}">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-floating-custom">
-                    <label for="id_username">Username</label>
+                    <label for="id_username">Usuario</label>
                     <div class="input-wrapper">
-                        <i class="bi bi-person input-icon"></i>
-                        <input type="text" name="username" id="id_username" placeholder="Enter your username" autofocus required
+                        <i class="bi bi-at input-icon"></i>
+                        <input type="text" name="username" id="id_username" placeholder="Elige un nombre de usuario" required
                                value="{{ form.username.value|default:'' }}">
                     </div>
                 </div>
 
                 <div class="form-floating-custom">
-                    <label for="id_password">Password</label>
+                    <label for="id_password1">Contraseña</label>
                     <div class="input-wrapper">
                         <i class="bi bi-lock input-icon"></i>
-                        <input type="password" name="password" id="id_password" placeholder="Enter your password" required>
-                        <button type="button" class="toggle-pass" id="togglePassword">
-                            <i class="bi bi-eye" id="eyeIcon"></i>
+                        <input type="password" name="password1" id="id_password1" placeholder="Crea una contraseña" required>
+                        <button type="button" class="toggle-pass" data-target="id_password1">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                    <div class="password-help">Mínimo 8 caracteres, no puede ser solo números.</div>
+                </div>
+
+                <div class="form-floating-custom">
+                    <label for="id_password2">Confirmar contraseña</label>
+                    <div class="input-wrapper">
+                        <i class="bi bi-lock-fill input-icon"></i>
+                        <input type="password" name="password2" id="id_password2" placeholder="Repite la contraseña" required>
+                        <button type="button" class="toggle-pass" data-target="id_password2">
+                            <i class="bi bi-eye"></i>
                         </button>
                     </div>
                 </div>
 
-                <div class="remember-row">
-                    <label class="custom-check">
-                        <input type="checkbox" id="rememberMe">
-                        Remember me
-                    </label>
-                </div>
-
-                <button type="submit" class="login-btn" id="loginBtn">
+                <button type="submit" class="register-btn" id="registerBtn">
                     <div class="spinner"></div>
                     <span class="btn-text">
-                        <i class="bi bi-box-arrow-in-right"></i> Sign In
+                        <i class="bi bi-person-check"></i> Registrarme
                     </span>
                 </button>
             </form>
 
-            <div class="register-link" style="text-align:center;margin-top:1.5rem;padding:16px;background:rgba(102,126,234,0.05);border-radius:12px;border:1px solid rgba(102,126,234,0.1);">
-                <span style="color:#6b7280;font-size:0.9rem;">¿No tienes cuenta?</span>
-                <a href="{% url 'register' %}" style="color:#667eea;font-weight:600;font-size:0.9rem;text-decoration:none;margin-left:6px;transition:all 0.2s;">
-                    Regístrate aquí <i class="bi bi-arrow-right"></i>
+            <div class="register-link" style="text-align:center;margin-top:1.25rem;padding:14px;background:rgba(102,126,234,0.05);border-radius:12px;border:1px solid rgba(102,126,234,0.1);">
+                <span style="color:#6b7280;font-size:0.9rem;">¿Ya tienes cuenta?</span>
+                <a href="{% url 'login' %}" style="color:#667eea;font-weight:600;font-size:0.9rem;text-decoration:none;margin-left:6px;">
+                    Inicia sesión <i class="bi bi-arrow-right"></i>
                 </a>
             </div>
 
             <div class="footer-text">
-                &copy; 2025 MateApp &mdash; Math Gamification Platform
+                &copy; 2025 MateApp &mdash; Plataforma de Gamificación Matemática
             </div>
         </div>
     </div>
@@ -522,18 +553,18 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Toggle password visibility
-    const togglePassword = document.getElementById('togglePassword');
-    const passwordInput = document.getElementById('id_password');
-    const eyeIcon = document.getElementById('eyeIcon');
-
-    if (togglePassword && passwordInput) {
-        togglePassword.addEventListener('click', function() {
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-            eyeIcon.classList.toggle('bi-eye');
-            eyeIcon.classList.toggle('bi-eye-slash');
+    document.querySelectorAll('.toggle-pass').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var target = document.getElementById(this.dataset.target);
+            var icon = this.querySelector('i');
+            if (target) {
+                var type = target.getAttribute('type') === 'password' ? 'text' : 'password';
+                target.setAttribute('type', type);
+                icon.classList.toggle('bi-eye');
+                icon.classList.toggle('bi-eye-slash');
+            }
         });
-    }
+    });
 
     // Input focus effects
     document.querySelectorAll('.input-wrapper input').forEach(function(input) {
@@ -546,26 +577,26 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Loading state on submit
-    const loginForm = document.getElementById('loginForm');
-    const loginBtn = document.getElementById('loginBtn');
+    var registerForm = document.getElementById('registerForm');
+    var registerBtn = document.getElementById('registerBtn');
 
-    if (loginForm && loginBtn) {
-        loginForm.addEventListener('submit', function() {
-            loginBtn.classList.add('loading');
-            loginBtn.disabled = true;
+    if (registerForm && registerBtn) {
+        registerForm.addEventListener('submit', function() {
+            registerBtn.classList.add('loading');
+            registerBtn.disabled = true;
             setTimeout(function() {
-                loginBtn.classList.remove('loading');
-                loginBtn.disabled = false;
+                registerBtn.classList.remove('loading');
+                registerBtn.disabled = false;
             }, 4000);
         });
     }
 
     // Floating math symbols
-    const symbols = ['+', '-', '=', '%', '3', '7', '9', '2', '5'];
-    const container = document.getElementById('floatingSymbols');
+    var symbols = ['+', '-', '=', '%', '3', '7', '9', '2', '5'];
+    var container = document.getElementById('floatingSymbols');
 
     function createSymbol() {
-        const span = document.createElement('span');
+        var span = document.createElement('span');
         span.className = 'math-symbol';
         span.textContent = symbols[Math.floor(Math.random() * symbols.length)];
         span.style.left = Math.random() * 100 + '%';
@@ -576,11 +607,9 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(function() { span.remove(); }, 18000);
     }
 
-    // Create initial batch
     for (var i = 0; i < 12; i++) {
         setTimeout(createSymbol, i * 800);
     }
-    // Keep creating
     setInterval(createSymbol, 2000);
 });
 </script>

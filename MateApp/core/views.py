@@ -11,11 +11,12 @@ import json
 import csv
 from datetime import timedelta
 from django.utils import timezone
-from .models import Discipline, Level, UserLevelProgress, LevelAttempt
+from .models import Discipline, Level, UserLevelProgress, LevelAttempt, QuestionImage
 from .services import save_level_progress
 from .forms import DisciplineForm, LevelForm
 
 from django.core.paginator import Paginator
+from django.views.decorators.http import require_POST
 
 User = get_user_model()
 
@@ -795,3 +796,24 @@ def general_analytics(request):
         'level_stats_json': level_stats_json,
         'student_stats_json': student_stats_json,
     })
+
+
+@login_required
+@require_POST
+@user_passes_test(is_management_user)
+def upload_question_image(request):
+    image_file = request.FILES.get('image')
+    if not image_file:
+        return JsonResponse({'error': 'No image provided'}, status=400)
+
+    allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    if image_file.content_type not in allowed_types:
+        return JsonResponse({'error': 'Invalid file type. Use JPG, PNG, GIF or WEBP.'}, status=400)
+
+    if image_file.size > 5 * 1024 * 1024:
+        return JsonResponse({'error': 'Image too large. Max 5MB.'}, status=400)
+
+    qi = QuestionImage(image=image_file)
+    qi.save()
+
+    return JsonResponse({'url': qi.image.url, 'id': qi.id})

@@ -10,7 +10,7 @@
                 <a href="{% url 'level_list' discipline.id %}" class="btn btn-outline-secondary">Cancel</a>
             </div>
 
-            <form method="post" id="levelForm">
+            <form method="post" id="levelForm" enctype="multipart/form-data">
                 {% csrf_token %}
 
                 <!-- Main Configuration Card -->
@@ -55,6 +55,24 @@
                             </div>
                         </div>
 
+                        <!-- Theme & Time Limit -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold"><i class="bi bi-palette me-1"></i>Temática del Nivel</label>
+                                    {{ form.theme }}
+                                    <div class="form-text text-muted">Selecciona una temática visual para el gameplay.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="timeLimitGroup" style="display:none;">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold"><i class="bi bi-stopwatch me-1"></i>Tiempo Límite (segundos)</label>
+                                    {{ form.time_limit_seconds }}
+                                    <div class="form-text text-muted">Tiempo que tiene la tortuga para llegar a la meta (ej. 300 = 5 min).</div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Hidden JSON Field -->
                         <div class="mb-3 d-none">
                             {{ form.game_config_json }}
@@ -86,6 +104,7 @@
                                         <option value="writing">Writing</option>
                                         <option value="dragDrop">Drag & Drop</option>
                                         <option value="matchingGame">Matching Pairs</option>
+                                        <option value="voice">Voice (Speech)</option>
                                     </select>
                                 </div>
                                 <div class="col-auto">
@@ -239,7 +258,8 @@
         "cards": "Flashcards",
         "writing": "Writing",
         "dragDrop": "Drag & Drop",
-        "matchingGame": "Matching Pairs"
+        "matchingGame": "Matching Pairs",
+        "voice": "Voice (Speech)"
     };
 
     // Tooltip descriptions with math examples for each game type
@@ -268,6 +288,11 @@
             "title": "Matching Pairs",
             "desc": "The student must match items from the left column with the right column.",
             "example": "<strong>Example:</strong> 3 x 4 &harr; 12 &nbsp;|&nbsp; 5 x 6 &harr; 30 &nbsp;|&nbsp; 8 x 7 &harr; 56"
+        },
+        "voice": {
+            "title": "Voice (Speech Recognition)",
+            "desc": "The student answers the question by speaking. Uses the browser microphone to capture speech and compare with the correct answer.",
+            "example": "<strong>Example:</strong> Question: &quot;How much is 5 + 3?&quot; &rarr; Student says: &quot;eight&quot; or &quot;8&quot;"
         }
     };
 
@@ -277,6 +302,7 @@
             "type": "option",
             "question": {
                 "text": "",
+                "image": "",
                 "options": ["", "", "", ""],
                 "correct_answer": ""
             }
@@ -297,6 +323,10 @@
         "matchingGame": {
             "type": "matchingGame",
             "question": { "text": "" }, "pairs": []
+        },
+        "voice": {
+            "type": "voice",
+            "question": { "text": "", "correct_answer": "" }
         }
     };
 
@@ -399,6 +429,12 @@
                 updateQ();
             }));
 
+            // Image upload (Select Option)
+            if (type === 'option') {
+                if (data.question.image === undefined) data.question.image = "";
+                wrapper.appendChild(createImageUploadRow(qIndex, data.question.image));
+            }
+
             // Sentence (DragDrop)
             if (type === 'dragDrop') {
                 if (data.question.sentence === undefined) data.question.sentence = "";
@@ -409,7 +445,7 @@
             }
 
             // Correct Answer (Simple Text)
-            if (type === 'writing' || type === 'cards') {
+            if (type === 'writing' || type === 'cards' || type === 'voice') {
                 if (data.question.correct_answer === undefined) data.question.correct_answer = "";
                 wrapper.appendChild(createInputRow('Correct Answer', data.question.correct_answer, (val) => {
                     data.question.correct_answer = val;
@@ -524,18 +560,10 @@
     function createPairRow(qIdx, pairIdx, pair) {
         const row = document.createElement('div');
         row.className = 'row mb-2 align-items-center';
-        row.innerHTML = `
-           <div class="col-md-5">
-              <input type="text" class="form-control" placeholder="Item A" value="${pair.item1 || ''}" oninput="updatePair(${qIdx}, ${pairIdx}, 'item1', this.value)">
-           </div>
-           <div class="col-md-1 text-center">=</div>
-           <div class="col-md-5">
-              <input type="text" class="form-control" placeholder="Item B" value="${pair.item2 || ''}" oninput="updatePair(${qIdx}, ${pairIdx}, 'item2', this.value)">
-           </div>
-           <div class="col-md-1">
-               <button type="button" class="btn btn-sm btn-outline-danger" onclick="removePair(${qIdx}, ${pairIdx})">X</button>
-           </div>
-        `;
+        row.innerHTML = '<div class="col-md-5"><input type="text" class="form-control" placeholder="Item A" value="' + (pair.item1 || '') + '" oninput="updatePair(' + qIdx + ', ' + pairIdx + ', \'item1\', this.value)"></div>' +
+            '<div class="col-md-1 text-center">=</div>' +
+            '<div class="col-md-5"><input type="text" class="form-control" placeholder="Item B" value="' + (pair.item2 || '') + '" oninput="updatePair(' + qIdx + ', ' + pairIdx + ', \'item2\', this.value)"></div>' +
+            '<div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removePair(' + qIdx + ', ' + pairIdx + ')">X</button></div>';
         return row;
     }
 
@@ -545,13 +573,11 @@
         const lbl = document.createElement('label');
         lbl.className = 'form-label';
         lbl.innerText = label;
-
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'form-control';
         input.value = value || '';
-        input.oninput = (e) => onChange(e.target.value);
-
+        input.oninput = function(e) { onChange(e.target.value); };
         div.appendChild(lbl);
         div.appendChild(input);
         return div;
@@ -564,86 +590,116 @@
         return h6;
     }
 
+    function createImageUploadRow(qIndex, currentImage) {
+        const div = document.createElement('div');
+        div.className = 'mb-3';
+        var previewHtml = currentImage ? '<img src="' + currentImage + '" style="max-width:200px;max-height:150px;border-radius:8px;border:2px solid #e5e7eb;" />' : '';
+        var removeBtn = currentImage ? '<button type="button" class="btn btn-sm btn-outline-danger" onclick="removeQuestionImage(' + qIndex + ')"><i class="bi bi-trash"></i></button>' : '';
+        div.innerHTML = '<label class="form-label"><i class="bi bi-image me-1"></i>Imagen de la pregunta <small class="text-muted">(opcional)</small></label>' +
+            '<div id="img-preview-' + qIndex + '" style="margin-bottom:8px;">' + previewHtml + '</div>' +
+            '<div class="input-group"><input type="file" class="form-control form-control-sm" accept="image/*" id="img-input-' + qIndex + '" onchange="uploadQuestionImage(' + qIndex + ', this)">' + removeBtn + '</div>' +
+            '<div id="img-status-' + qIndex + '" class="small mt-1"></div>';
+        return div;
+    }
+
+    window.uploadQuestionImage = function(qIndex, inputEl) {
+        var file = inputEl.files[0];
+        if (!file) return;
+        var statusEl = document.getElementById('img-status-' + qIndex);
+        statusEl.innerHTML = '<span class="text-primary"><i class="bi bi-arrow-repeat spin-icon"></i> Subiendo imagen...</span>';
+        var formData = new FormData();
+        formData.append('image', file);
+        fetch('{% url "upload_question_image" %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            body: formData
+        })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+            if (data.error) {
+                statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>' + data.error + '</span>';
+                return;
+            }
+            gameData.questions[qIndex].question.image = data.url;
+            updateJson();
+            statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Imagen subida correctamente</span>';
+            var preview = document.getElementById('img-preview-' + qIndex);
+            preview.innerHTML = '<img src="' + data.url + '" style="max-width:200px;max-height:150px;border-radius:8px;border:2px solid #e5e7eb;" />';
+        })
+        .catch(function(err) {
+            statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Error al subir imagen</span>';
+            console.error(err);
+        });
+    };
+
+    window.removeQuestionImage = function(qIndex) {
+        gameData.questions[qIndex].question.image = "";
+        updateJson();
+        initEditor();
+    };
+
     function updateJson() {
         jsonField.value = JSON.stringify(gameData, null, 2);
     }
 
-    // Show help text for selected game type
     function updateGameTypeHelp() {
-        const select = document.getElementById('questionTypeSelect');
-        const helpDiv = document.getElementById('gameTypeHelpText');
-        const type = select.value;
-        const info = gameTypeHelp[type];
+        var select = document.getElementById('questionTypeSelect');
+        var helpDiv = document.getElementById('gameTypeHelpText');
+        var type = select.value;
+        var info = gameTypeHelp[type];
         if (info) {
-            helpDiv.innerHTML = `<strong>${info.title}</strong><br>${info.desc}<br><span class="text-muted">${info.example}</span>`;
+            helpDiv.innerHTML = '<strong>' + info.title + '</strong><br>' + info.desc + '<br><span class="text-muted">' + info.example + '</span>';
         } else {
             helpDiv.innerHTML = 'Select a game type to see its description.';
         }
     }
 
-    // ===== Student Assignment Logic =====
-
     function assignStudent(id, username, email) {
-        // Hide from available table
-        const availableRow = document.querySelector('#availableStudentsBody tr[data-student-id="' + id + '"]');
+        var availableRow = document.querySelector('#availableStudentsBody tr[data-student-id="' + id + '"]');
         if (availableRow) availableRow.classList.add('d-none');
-
-        // Add to assigned table
-        const assignedBody = document.getElementById('assignedStudentsBody');
-        const tr = document.createElement('tr');
+        var assignedBody = document.getElementById('assignedStudentsBody');
+        var tr = document.createElement('tr');
         tr.setAttribute('data-student-id', id);
         tr.innerHTML = '<td><i class="bi bi-person-check-fill text-info me-1"></i> ' + username + '</td>' +
             '<td class="text-muted small">' + (email || '-') + '</td>' +
             '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="unassignStudent(' + id + ')"><i class="bi bi-x-lg"></i> Quitar</button></td>';
         assignedBody.appendChild(tr);
-
-        // Add hidden input
-        const container = document.getElementById('assignedInputsContainer');
-        const input = document.createElement('input');
+        var container = document.getElementById('assignedInputsContainer');
+        var input = document.createElement('input');
         input.type = 'hidden';
         input.name = 'assigned_students';
         input.value = id;
         input.setAttribute('data-student-id', id);
         container.appendChild(input);
-
         updateStudentCounts();
     }
 
     function unassignStudent(id) {
-        // Remove from assigned table
-        const assignedRow = document.querySelector(`#assignedStudentsBody tr[data-student-id="${id}"]`);
+        var assignedRow = document.querySelector('#assignedStudentsBody tr[data-student-id="' + id + '"]');
         if (assignedRow) assignedRow.remove();
-
-        // Show in available table
-        const availableRow = document.querySelector(`#availableStudentsBody tr[data-student-id="${id}"]`);
+        var availableRow = document.querySelector('#availableStudentsBody tr[data-student-id="' + id + '"]');
         if (availableRow) availableRow.classList.remove('d-none');
-
-        // Remove hidden input
-        const hiddenInput = document.querySelector(`#assignedInputsContainer input[data-student-id="${id}"]`);
+        var hiddenInput = document.querySelector('#assignedInputsContainer input[data-student-id="' + id + '"]');
         if (hiddenInput) hiddenInput.remove();
-
         updateStudentCounts();
     }
 
     function updateStudentCounts() {
-        const assignedRows = document.querySelectorAll('#assignedStudentsBody tr');
-        const count = assignedRows.length;
+        var assignedRows = document.querySelectorAll('#assignedStudentsBody tr');
+        var count = assignedRows.length;
         document.getElementById('assignedCount').textContent = count + ' asignados';
         document.getElementById('noAssignedMsg').style.display = count === 0 ? '' : 'none';
-
-        // Check available visible rows
-        const visibleAvailable = document.querySelectorAll('#availableStudentsBody tr.student-available-row:not(.d-none):not(.search-hidden)');
+        var visibleAvailable = document.querySelectorAll('#availableStudentsBody tr.student-available-row:not(.d-none):not(.search-hidden)');
         document.getElementById('noAvailableMsg').style.display = visibleAvailable.length === 0 ? '' : 'none';
     }
 
-    // Search / filter available students
     document.getElementById('studentSearch').addEventListener('input', function() {
-        const query = this.value.toLowerCase().trim();
-        const rows = document.querySelectorAll('#availableStudentsBody tr.student-available-row');
-        rows.forEach(row => {
-            const username = row.getAttribute('data-username') || '';
-            const email = row.getAttribute('data-email') || '';
-            const matches = username.includes(query) || email.includes(query);
+        var query = this.value.toLowerCase().trim();
+        var rows = document.querySelectorAll('#availableStudentsBody tr.student-available-row');
+        rows.forEach(function(row) {
+            var username = row.getAttribute('data-username') || '';
+            var email = row.getAttribute('data-email') || '';
+            var matches = username.includes(query) || email.includes(query);
             if (matches) {
                 row.classList.remove('search-hidden');
             } else {
@@ -653,27 +709,27 @@
         updateStudentCounts();
     });
 
-    // Initialize
+    function toggleTimeLimitField() {
+        var theme = document.getElementById('id_theme').value;
+        var group = document.getElementById('timeLimitGroup');
+        group.style.display = (theme !== 'none') ? '' : 'none';
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         initEditor();
         updateGameTypeHelp();
         document.getElementById('questionTypeSelect').addEventListener('change', updateGameTypeHelp);
         updateStudentCounts();
+        toggleTimeLimitField();
+        document.getElementById('id_theme').addEventListener('change', toggleTimeLimitField);
     });
 </script>
 
 <style>
-    .border-dashed {
-        border: 2px dashed #dee2e6;
-    }
-
-    .form-switch .form-check-input {
-        width: 3em;
-        height: 1.5em;
-    }
-
-    .search-hidden {
-        display: none !important;
-    }
+    .border-dashed { border: 2px dashed #dee2e6; }
+    .form-switch .form-check-input { width: 3em; height: 1.5em; }
+    .search-hidden { display: none !important; }
+    .spin-icon { display: inline-block; animation: spin-anim 1s linear infinite; }
+    @keyframes spin-anim { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>
 {% endblock %}

@@ -13,11 +13,19 @@ class Discipline(models.Model):
         return self.name
 
 class Level(models.Model):
+    THEME_CHOICES = [
+        ('none', 'Sin temática'),
+        ('tortoise_hare', 'La Liebre y la Tortuga'),
+        ('mountain_climb', 'Escalada de Montaña'),
+    ]
+
     discipline = models.ForeignKey(Discipline, on_delete=models.CASCADE, related_name='levels')
     number = models.IntegerField()
     game_config = models.JSONField(default=dict, blank=True, help_text="Specific configuration for the game in this level")
     is_active = models.BooleanField(default=True)
     assigned_students = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='assigned_levels')
+    theme = models.CharField(max_length=30, choices=THEME_CHOICES, default='none', help_text="Visual theme for the level gameplay")
+    time_limit_seconds = models.IntegerField(default=300, help_text="Time limit in seconds (used by timed themes like Tortoise & Hare)")
 
     class Meta:
         ordering = ['discipline', 'number']
@@ -45,6 +53,15 @@ class UserLevelProgress(models.Model):
     def save(self, *args, **kwargs):
         # Update user total points logic could be here or in a signal/service
         super().save(*args, **kwargs)
+
+
+class QuestionImage(models.Model):
+    level = models.ForeignKey(Level, on_delete=models.CASCADE, related_name='question_images', null=True, blank=True)
+    image = models.ImageField(upload_to='question_images/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Image for {self.level} - {self.image.name}"
 
 
 class LevelAttempt(models.Model):

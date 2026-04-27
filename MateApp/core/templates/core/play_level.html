@@ -67,6 +67,9 @@
                                     <div class="stat-label">Stars</div>
                                 </div>
                             </div>
+                            <button type="button" class="bgm-toggle-btn" id="bgm-toggle-btn" onclick="toggleBGM()" title="Activar música">
+                                <i class="bi bi-volume-mute-fill"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -91,6 +94,85 @@
         </div>
     </div>
 
+    <!-- Race Track (Tortoise & Hare Theme) -->
+    {% if level.theme == 'tortoise_hare' %}
+    <div class="row justify-content-center mt-3" id="race-track-wrapper">
+        <div class="col-lg-10">
+            <div class="race-card">
+                <div class="race-header">
+                    <span class="race-title"><i class="bi bi-flag-fill me-1"></i> La Carrera</span>
+                    <span class="race-timer" id="race-countdown">--:--</span>
+                </div>
+                <div class="race-track">
+                    <!-- Finish line -->
+                    <div class="finish-line"></div>
+                    <!-- Hare lane -->
+                    <div class="race-lane hare-lane">
+                        <div class="lane-label">Tu (Liebre)</div>
+                        <div class="lane-track">
+                            <div class="racer hare-racer" id="hare-racer">
+                                <div class="pixel-hare"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Tortoise lane -->
+                    <div class="race-lane tortoise-lane">
+                        <div class="lane-label">Tortuga</div>
+                        <div class="lane-track">
+                            <div class="racer tortoise-racer" id="tortoise-racer">
+                                <div class="pixel-tortoise"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Track grass decoration -->
+                    <div class="track-ground"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Mountain Climb Theme -->
+    {% if level.theme == 'mountain_climb' %}
+    <div class="row justify-content-center mt-3" id="mountain-wrapper">
+        <div class="col-lg-10">
+            <div class="mountain-card">
+                <div class="mountain-header">
+                    <span class="mountain-title"><i class="bi bi-triangle-fill me-1"></i> Escalada de Montaña</span>
+                    <span class="mountain-timer" id="mountain-countdown">--:--</span>
+                </div>
+                <div class="mountain-scene">
+                    <!-- Summit flag -->
+                    <div class="summit-flag">🚩</div>
+                    <!-- Mountain body -->
+                    <div class="mountain-body">
+                        <!-- Height markers -->
+                        <div class="height-marker" style="bottom:80%"><span>80%</span></div>
+                        <div class="height-marker" style="bottom:60%"><span>60%</span></div>
+                        <div class="height-marker" style="bottom:40%"><span>40%</span></div>
+                        <div class="height-marker" style="bottom:20%"><span>20%</span></div>
+                        <!-- Climber -->
+                        <div class="climber" id="mountain-climber">
+                            <div class="pixel-climber"></div>
+                        </div>
+                        <!-- Danger zone (fog/avalanche rising) -->
+                        <div class="danger-zone" id="danger-zone">
+                            <div class="danger-label"><i class="bi bi-cloud-fog2-fill"></i> Niebla</div>
+                        </div>
+                    </div>
+                    <!-- Ground -->
+                    <div class="mountain-ground"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Race Result Overlay -->
+    <div id="race-result-overlay" style="display:none;">
+        <div class="race-result-content" id="race-result-content"></div>
+    </div>
+
     <!-- Hidden Form for Submission -->
     <form method="post" id="game-form" style="display:none;">
         {% csrf_token %}
@@ -103,6 +185,12 @@
 
 <!-- Config Data -->
 {{ level.game_config|json_script:"game-config-data" }}
+
+<!-- Theme Data -->
+<script>
+    const LEVEL_THEME = "{{ level.theme }}";
+    const LEVEL_TIME_LIMIT = {{ level.time_limit_seconds }};
+</script>
 
 <script>
     // --- Enhanced Game State ---
@@ -118,6 +206,9 @@
     let gameStartTime = null;
     let timerInterval = null;
     let elapsedSeconds = 0;
+
+    // --- Theme Engine State ---
+    let themeFinished = false;
 
     // --- Sound Effects (using Web Audio API for simple sounds) ---
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -152,6 +243,92 @@
     function playClickSound() {
         playSound(600, 0.05);
     }
+
+    // --- Voice Audio System (pre-recorded) ---
+    var AUDIO_BASE = '{% static "core/audio" %}';
+    var AUDIO_COUNTS = { correct: 10, incorrect: 9, victory: 9, defeat: 9 };
+    var currentVoiceAudio = null;
+
+    function playVoiceAudio(category) {
+        if (currentVoiceAudio) {
+            currentVoiceAudio.pause();
+            currentVoiceAudio.currentTime = 0;
+        }
+        var count = AUDIO_COUNTS[category] || 1;
+        var idx = Math.floor(Math.random() * count) + 1;
+        currentVoiceAudio = new Audio(AUDIO_BASE + '/' + category + '/' + idx + '.mp3');
+        currentVoiceAudio.volume = 0.9;
+        currentVoiceAudio.play().catch(function(e) { console.warn('Audio play failed:', e); });
+    }
+
+    function speakCorrect() { playVoiceAudio('correct'); }
+    function speakIncorrect() { playVoiceAudio('incorrect'); }
+    function speakText(text) { /* legacy stub — no longer used */ }
+
+    // --- Background Music (BGM) ---
+    var BGM_FILES = [
+        '{% static "core/audio/bgm/Donkey-Kong-Country-OST-_Super-Nintendo_-Track-0223-Simian-Segue.mp3" %}',
+        '{% static "core/audio/bgm/Super-Mario-64-Dire-Dire-Docks-Jolly-Roger-Bay-Music.mp3" %}',
+        '{% static "core/audio/bgm/Super-Mario-64-Music-Bowsers-Road-EXTENDED.mp3" %}',
+        '{% static "core/audio/bgm/Super-Mario-64-Music-File-Select-EXTENDED.mp3" %}'
+    ];
+    var bgmAudio = null;
+    var bgmPlaying = false;
+
+    function startBGM() {
+        if (bgmAudio) return;
+        var idx = Math.floor(Math.random() * BGM_FILES.length);
+        bgmAudio = new Audio(BGM_FILES[idx]);
+        bgmAudio.loop = true;
+        bgmAudio.volume = 0.10;
+        bgmAudio.play().then(function() {
+            bgmPlaying = true;
+        }).catch(function(e) {
+            console.warn('BGM autoplay blocked, will start on interaction:', e);
+            bgmPlaying = false;
+        });
+    }
+
+    function stopBGM() {
+        if (bgmAudio) {
+            bgmAudio.pause();
+            bgmAudio.currentTime = 0;
+            bgmAudio = null;
+            bgmPlaying = false;
+        }
+    }
+
+    function toggleBGM() {
+        if (bgmPlaying && bgmAudio) {
+            bgmAudio.pause();
+            bgmPlaying = false;
+        } else if (bgmAudio) {
+            bgmAudio.play();
+            bgmPlaying = true;
+        } else {
+            startBGM();
+        }
+        updateBGMButton();
+    }
+
+    function updateBGMButton() {
+        var btn = document.getElementById('bgm-toggle-btn');
+        if (!btn) return;
+        btn.innerHTML = bgmPlaying
+            ? '<i class="bi bi-volume-up-fill"></i>'
+            : '<i class="bi bi-volume-mute-fill"></i>';
+        btn.title = bgmPlaying ? 'Silenciar música' : 'Activar música';
+    }
+
+    // Start BGM on first user interaction (for browsers that block autoplay)
+    function initBGMOnInteraction() {
+        if (bgmPlaying) return;
+        startBGM();
+        document.removeEventListener('click', initBGMOnInteraction);
+        document.removeEventListener('keydown', initBGMOnInteraction);
+    }
+    document.addEventListener('click', initBGMOnInteraction);
+    document.addEventListener('keydown', initBGMOnInteraction);
 
     // --- Inits ---
     document.addEventListener('DOMContentLoaded', () => {
@@ -231,6 +408,7 @@
         userAnswers = [];
         startTimer();
         updateStats();
+        ThemeEngine.onStart();
         showQuestion(currentIndex);
     }
 
@@ -307,6 +485,7 @@
 
     // --- Enhanced Renderers ---
     function showQuestion(index) {
+        if (themeFinished) return;
         if (index >= questions.length) {
             finishGame();
             return;
@@ -331,6 +510,14 @@
             container.appendChild(title);
         }
 
+        // Question Image (if present)
+        if (q.image) {
+            const imgDiv = document.createElement('div');
+            imgDiv.className = 'question-image-container';
+            imgDiv.innerHTML = `<img src="${q.image}" alt="Imagen de la pregunta" class="question-image" />`;
+            container.appendChild(imgDiv);
+        }
+
         // Content Area
         const contentDiv = document.createElement('div');
         contentDiv.className = 'game-content';
@@ -345,6 +532,8 @@
             renderWritingGame(contentDiv, qData);
         } else if (type === 'matchingGame') {
             renderMatchingGame(contentDiv, qData);
+        } else if (type === 'voice') {
+            renderVoiceGame(contentDiv, qData);
         } else {
             contentDiv.innerHTML = `
                 <div class="unsupported-game">
@@ -558,13 +747,15 @@
             playSuccessSound();
             updateStats();
             showScorePopup(10);
+            ThemeEngine.onCorrect();
         } else {
             combo = 0;
             playErrorSound();
+            ThemeEngine.onIncorrect();
         }
         
         recordAnswer(userAnswer, isCorrect, currentType);
-        handleResult(isCorrect);
+        if (!themeFinished) handleResult(isCorrect);
     }
 
     function checkWritingAnswer(correct) {
@@ -572,6 +763,170 @@
         const userAnswer = input.value.trim();
         checkAnswer(userAnswer, correct);
     }
+
+    // --- Voice (Speech Recognition) Game ---
+    var voiceRecognition = null;
+
+    function renderVoiceGame(container, data) {
+        var correctAnswer = data.question.correct_answer || '';
+        container.innerHTML = '<div class="voice-game">' +
+            '<div class="voice-status" id="voice-status">' +
+                '<i class="bi bi-mic-fill"></i> Presiona el botón y di tu respuesta' +
+            '</div>' +
+            '<div class="voice-transcript-box" id="voice-transcript-box">' +
+                '<span class="voice-transcript-placeholder">Tu respuesta aparecerá aquí...</span>' +
+            '</div>' +
+            '<div class="voice-controls">' +
+                '<button type="button" class="voice-record-btn" id="voice-record-btn" onclick="startVoiceRecognition()">' +
+                    '<i class="bi bi-mic-fill"></i>' +
+                    '<span>Hablar</span>' +
+                '</button>' +
+                '<button type="button" class="voice-submit-btn" id="voice-submit-btn" style="display:none;" onclick="checkVoiceAnswer(\'' + correctAnswer.replace(/'/g, "\\'") + '\')">' +
+                    '<i class="bi bi-check-lg"></i>' +
+                    '<span>Verificar</span>' +
+                '</button>' +
+            '</div>' +
+            '<div class="voice-hint">' +
+                '<i class="bi bi-info-circle"></i> ' +
+                'Usa Chrome o Edge para mejor compatibilidad con reconocimiento de voz' +
+            '</div>' +
+        '</div>';
+    }
+
+    window.startVoiceRecognition = function() {
+        var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            var statusEl = document.getElementById('voice-status');
+            statusEl.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.';
+            statusEl.className = 'voice-status voice-status-error';
+            return;
+        }
+
+        if (voiceRecognition) {
+            voiceRecognition.abort();
+            voiceRecognition = null;
+        }
+
+        voiceRecognition = new SpeechRecognition();
+        voiceRecognition.lang = 'es-ES';
+        voiceRecognition.interimResults = true;
+        voiceRecognition.maxAlternatives = 3;
+        voiceRecognition.continuous = false;
+
+        var statusEl = document.getElementById('voice-status');
+        var transcriptBox = document.getElementById('voice-transcript-box');
+        var recordBtn = document.getElementById('voice-record-btn');
+        var submitBtn = document.getElementById('voice-submit-btn');
+
+        statusEl.innerHTML = '<i class="bi bi-mic-fill text-danger"></i> Escuchando... habla ahora';
+        statusEl.className = 'voice-status voice-status-listening';
+        recordBtn.classList.add('voice-recording');
+        recordBtn.innerHTML = '<i class="bi bi-stop-fill"></i><span>Detener</span>';
+        recordBtn.onclick = function() {
+            voiceRecognition.stop();
+        };
+
+        var finalTranscript = '';
+
+        voiceRecognition.onresult = function(event) {
+            var interim = '';
+            finalTranscript = '';
+            for (var i = event.resultIndex; i < event.results.length; i++) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                } else {
+                    interim += event.results[i][0].transcript;
+                }
+            }
+            var display = finalTranscript || interim;
+            transcriptBox.innerHTML = '<span class="voice-transcript-text">' + display + '</span>';
+            if (finalTranscript) {
+                transcriptBox.setAttribute('data-final', finalTranscript.trim());
+            }
+        };
+
+        voiceRecognition.onend = function() {
+            recordBtn.classList.remove('voice-recording');
+            recordBtn.innerHTML = '<i class="bi bi-mic-fill"></i><span>Hablar de nuevo</span>';
+            recordBtn.onclick = function() { startVoiceRecognition(); };
+
+            var final = transcriptBox.getAttribute('data-final');
+            if (final) {
+                statusEl.innerHTML = '<i class="bi bi-check-circle text-success"></i> Respuesta capturada: "' + final + '"';
+                statusEl.className = 'voice-status voice-status-done';
+                submitBtn.style.display = '';
+            } else {
+                statusEl.innerHTML = '<i class="bi bi-exclamation-circle text-warning"></i> No se detectó voz. Intenta de nuevo.';
+                statusEl.className = 'voice-status voice-status-error';
+            }
+        };
+
+        voiceRecognition.onerror = function(event) {
+            recordBtn.classList.remove('voice-recording');
+            recordBtn.innerHTML = '<i class="bi bi-mic-fill"></i><span>Intentar de nuevo</span>';
+            recordBtn.onclick = function() { startVoiceRecognition(); };
+            var msg = 'Error: ';
+            if (event.error === 'not-allowed') msg += 'Permiso de micrófono denegado.';
+            else if (event.error === 'no-speech') msg += 'No se detectó voz.';
+            else msg += event.error;
+            statusEl.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> ' + msg;
+            statusEl.className = 'voice-status voice-status-error';
+        };
+
+        voiceRecognition.start();
+    };
+
+    // Map of Spanish number words to digits
+    var spanishNumbers = {
+        'cero':0,'uno':1,'una':1,'dos':2,'tres':3,'cuatro':4,'cinco':5,
+        'seis':6,'siete':7,'ocho':8,'nueve':9,'diez':10,
+        'once':11,'doce':12,'trece':13,'catorce':14,'quince':15,
+        'dieciséis':16,'dieciseis':16,'diecisiete':17,'dieciocho':18,'diecinueve':19,
+        'veinte':20,'veintiuno':21,'veintiuna':21,'veintidós':22,'veintidos':22,
+        'veintitrés':23,'veintitres':23,'veinticuatro':24,'veinticinco':25,
+        'veintiséis':26,'veintiseis':26,'veintisiete':27,'veintiocho':28,'veintinueve':29,
+        'treinta':30,'cuarenta':40,'cincuenta':50,'sesenta':60,'setenta':70,
+        'ochenta':80,'noventa':90,'cien':100,'ciento':100,
+        'doscientos':200,'trescientos':300,'cuatrocientos':400,'quinientos':500,
+        'seiscientos':600,'setecientos':700,'ochocientos':800,'novecientos':900,'mil':1000
+    };
+
+    // Also build reverse map: digit string -> word
+    var digitToWord = {};
+    for (var word in spanishNumbers) {
+        digitToWord[String(spanishNumbers[word])] = word;
+    }
+
+    function normalizeVoiceAnswer(text) {
+        // Remove punctuation and extra spaces
+        var cleaned = text.toLowerCase().replace(/[.,;:!?¿¡]/g, '').trim();
+        // If it's a number word, convert to digit string
+        if (spanishNumbers.hasOwnProperty(cleaned)) {
+            return String(spanishNumbers[cleaned]);
+        }
+        // If it's a digit string, keep as is
+        return cleaned;
+    }
+
+    function normalizeCorrectAnswer(text) {
+        var cleaned = text.toLowerCase().replace(/[.,;:!?¿¡]/g, '').trim();
+        if (spanishNumbers.hasOwnProperty(cleaned)) {
+            return String(spanishNumbers[cleaned]);
+        }
+        return cleaned;
+    }
+
+    window.checkVoiceAnswer = function(correct) {
+        var transcriptBox = document.getElementById('voice-transcript-box');
+        var raw = (transcriptBox.getAttribute('data-final') || '').trim();
+        if (!raw) return;
+
+        var normalizedUser = normalizeVoiceAnswer(raw);
+        var normalizedCorrect = normalizeCorrectAnswer(correct);
+
+        // Pass both normalized values so checkAnswer's === comparison works
+        checkAnswer(normalizedUser, normalizedCorrect);
+    };
 
     function recordAnswer(userAnswer, isCorrect, type) {
         userAnswers.push({
@@ -606,6 +961,13 @@
         `;
         
         container.appendChild(overlay);
+
+        // Voice feedback
+        if (isCorrect) {
+            speakCorrect();
+        } else {
+            speakIncorrect();
+        }
     }
 
     function nextQuestion() {
@@ -614,6 +976,13 @@
     }
 
     function finishGame() {
+        // If a theme is active and not already finished, delegate to ThemeEngine
+        // Completing all questions without being defeated = victory (survived!)
+        if (ThemeEngine.active && !themeFinished) {
+            ThemeEngine.onVictory();
+            return;
+        }
+
         const finalTime = stopTimer();
         const container = document.getElementById('game-container');
         const percent = (score / maxScore) * 100;
@@ -673,6 +1042,10 @@
         playSuccessSound();
         setTimeout(() => playSuccessSound(), 200);
         setTimeout(() => playSuccessSound(), 400);
+
+        // Voice feedback for level completion
+        setTimeout(function() { playVoiceAudio('victory'); }, 500);
+        stopBGM();
     }
 
     function submitResults(finalScore, finalStars) {
@@ -720,13 +1093,15 @@
             playSuccessSound();
             updateStats();
             showScorePopup(10);
+            ThemeEngine.onCorrect();
         } else {
             combo = 0;
             playErrorSound();
+            ThemeEngine.onIncorrect();
         }
 
         recordAnswer(userItems.join(', '), isCorrect, 'dragDrop');
-        handleResult(isCorrect, isCorrect ? "Perfect Order!" : "Wrong Order!");
+        if (!themeFinished) handleResult(isCorrect, isCorrect ? "Perfect Order!" : "Wrong Order!");
     };
 
     window.selectMatch = function(btn) {
@@ -770,12 +1145,14 @@
                 showScorePopup(pointsPerPair);
 
                 if (found >= totalPairs) {
+                    ThemeEngine.onCorrect();
                     recordAnswer("Completed all matches", true, 'matchingGame');
-                    handleResult(true, "All matched perfectly!");
+                    if (!themeFinished) handleResult(true, "All matched perfectly!");
                 }
             } else {
                 combo = 0;
                 playErrorSound();
+                ThemeEngine.onIncorrect();
                 const feedback = document.getElementById('match-feedback');
                 feedback.innerHTML = '<i class="bi bi-x-circle"></i> Try again!';
                 feedback.className = 'match-feedback incorrect';
@@ -791,6 +1168,378 @@
             }
         }
     };
+
+    // ============================================
+    // === THEME ENGINE (Generic Game Skin System) =
+    // ============================================
+    //
+    // Base contract — every theme implements these callbacks.
+    // Themes that don't need a callback can leave the default no-op.
+    //
+    const ThemeEngine = {
+        active: false,
+        onStart:     function() {},                      // called when game begins
+        onCorrect:   function() {},                      // called on correct answer
+        onIncorrect: function() {},                      // called on wrong answer
+        onTick:      function(elapsed, total) {},        // called every 200ms
+        checkVictory: function() { return false; },      // true → player wins
+        checkDefeat:  function() { return false; },      // true → player loses
+        onVictory:   function() {},                      // render win screen
+        onDefeat:    function() {},                      // render lose screen
+        onStop:      function() {},                      // cleanup (intervals, etc.)
+    };
+
+    // Helper: show the shared overlay
+    function showThemeOverlay(html) {
+        const overlay = document.getElementById('race-result-overlay');
+        const content = document.getElementById('race-result-content');
+        if (overlay && content) { content.innerHTML = html; overlay.style.display = 'flex'; }
+    }
+
+    // Helper: pick random message
+    function randomMsg(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    // --- Register themes here ---
+    const THEME_REGISTRY = {};
+
+    // ============================================
+    // SKIN: La Liebre y la Tortuga
+    // ============================================
+    THEME_REGISTRY['tortoise_hare'] = function() {
+        let tortoisePct = 0;
+        let harePct = 0;
+        let interval = null;
+        const maxOff = 68; // sprite(48) + finish margin(20)
+
+        const msgs = {
+            lost: [
+                "¡No dejes que la tortuga te venza! 🐢 Inténtalo de nuevo.",
+                "¡La tortuga llegó primero! Pero no te rindas, eres más veloz de lo que crees. 💪",
+                "¡La constancia de la tortuga ganó esta vez! Demuestra que la velocidad también cuenta. 🐇",
+                "¡Casi lo logras! La próxima vez la liebre cruzará la meta primero. 🏁",
+            ],
+            won: [
+                "¡Excelente! La liebre cruzó la meta primero. ¡Todos somos ganadores cuando damos nuestro mejor esfuerzo! 🌟",
+                "¡Lo lograste! Recuerda: la verdadera victoria es aprender algo nuevo cada día. 🏆",
+                "¡Ganaste la carrera! La moraleja real: ¡con esfuerzo y dedicación todo se puede! 🎉",
+                "¡Increíble velocidad! Recuerda que lo importante es el camino, no solo la meta. ⭐",
+            ],
+            survival: [
+                "¡Sobreviviste a la carrera! Pero la liebre no cruzó la meta. ¿Podrás lograr una victoria perfecta? 🎯",
+                "¡La tortuga no te alcanzó! Ahora intenta responder todo correctamente para cruzar la meta. 🏁",
+                "¡Buen trabajo resistiendo! Para una victoria perfecta, responde todas las preguntas correctamente. ✨",
+                "¡No te rendiste! Pero la meta te espera. ¡Vuelve a intentarlo para una victoria completa! 💫",
+            ]
+        };
+
+        function updatePositions() {
+            const hare = document.getElementById('hare-racer');
+            const tortoise = document.getElementById('tortoise-racer');
+            const hP = Math.min(harePct, 100);
+            const tP = Math.min(tortoisePct, 100);
+            if (hare) hare.style.left = 'calc(' + hP + '% - ' + (hP * maxOff / 100) + 'px)';
+            if (tortoise) tortoise.style.left = 'calc(' + tP + '% - ' + (tP * maxOff / 100) + 'px)';
+        }
+
+        function updateCountdown(sec) {
+            const el = document.getElementById('race-countdown');
+            if (!el) return;
+            const m = String(Math.floor(sec / 60)).padStart(2, '0');
+            const s = String(sec % 60).padStart(2, '0');
+            el.textContent = m + ':' + s;
+            if (sec <= 30) el.classList.add('race-timer-danger');
+            else el.classList.remove('race-timer-danger');
+        }
+
+        // --- Implement ThemeEngine contract ---
+        ThemeEngine.active = true;
+
+        ThemeEngine.onStart = function() {
+            tortoisePct = 0;
+            harePct = 0;
+            updatePositions();
+            const tickMs = 200;
+            const totalTicks = (LEVEL_TIME_LIMIT * 1000) / tickMs;
+            const tortoiseStep = 100 / totalTicks;
+            updateCountdown(LEVEL_TIME_LIMIT);
+
+            interval = setInterval(function() {
+                if (themeFinished) { clearInterval(interval); return; }
+                tortoisePct = Math.min(100, tortoisePct + tortoiseStep);
+                updatePositions();
+                const elapsed = (Date.now() - gameStartTime) / 1000;
+                updateCountdown(Math.max(0, LEVEL_TIME_LIMIT - Math.floor(elapsed)));
+                if (ThemeEngine.checkDefeat()) { ThemeEngine.onDefeat(); }
+            }, tickMs);
+        };
+
+        ThemeEngine.onCorrect = function() {
+            if (themeFinished) return;
+            const step = 100 / questions.length;
+            harePct = Math.min(100, harePct + step);
+            updatePositions();
+            const hare = document.getElementById('hare-racer');
+            if (hare) {
+                hare.classList.add('hare-hop');
+                setTimeout(function() { hare.classList.remove('hare-hop'); }, 400);
+            }
+        };
+
+        ThemeEngine.onIncorrect = function() {
+            if (themeFinished) return;
+            const penalty = (100 / questions.length) * 0.5;
+            tortoisePct = Math.min(100, tortoisePct + penalty);
+            updatePositions();
+            const tortoise = document.getElementById('tortoise-racer');
+            if (tortoise) {
+                tortoise.classList.add('tortoise-boost');
+                setTimeout(function() { tortoise.classList.remove('tortoise-boost'); }, 600);
+            }
+            if (ThemeEngine.checkDefeat()) { ThemeEngine.onDefeat(); }
+        };
+
+        ThemeEngine.checkVictory = function() { return harePct >= 100; };
+        ThemeEngine.checkDefeat  = function() { return !themeFinished && tortoisePct >= 100; };
+
+        ThemeEngine.onVictory = function() {
+            themeFinished = true;
+            ThemeEngine.onStop();
+            const finalTime = stopTimer();
+            const percent = (score / maxScore) * 100;
+            var isPerfect = harePct >= 100;
+            let stars = 1;
+            if (isPerfect) {
+                if (percent > 60) stars = 3;
+                else if (percent > 30) stars = 2;
+            } else {
+                stars = Math.max(1, Math.floor(percent / 50));
+            }
+            var icon = isPerfect ? '🐇🏆' : '🐇✅';
+            var title = isPerfect ? '¡La liebre ganó la carrera!' : '¡Sobreviviste a la carrera!';
+            var msg = isPerfect ? randomMsg(msgs.won) : randomMsg(msgs.survival);
+            var extraBtn = isPerfect ? '' :
+                '<button class="btn-race-retry" style="background:linear-gradient(135deg,#3498db,#2980b9);box-shadow:0 4px 15px rgba(52,152,219,0.3);" onclick="location.reload()"><i class="bi bi-stars me-1"></i>Intentar victoria perfecta</button>';
+            showThemeOverlay(
+                '<div class="race-result-box race-won">' +
+                    '<div class="race-result-icon">' + icon + '</div>' +
+                    '<h2>' + title + '</h2>' +
+                    (isPerfect ? '' : '<div class="race-survival-badge">Victoria de supervivencia</div>') +
+                    '<p class="race-result-msg">' + msg + '</p>' +
+                    '<div class="race-result-stats">' +
+                        '<span>Puntaje: ' + score + '/' + maxScore + '</span>' +
+                        '<span>Tiempo: ' + Math.floor(finalTime/60) + 'm ' + (finalTime%60) + 's</span>' +
+                    '</div>' +
+                    '<div class="race-result-actions">' +
+                        '<button class="btn-race-continue" onclick="submitResults(' + score + ', ' + stars + ')"><i class="bi bi-trophy me-1"></i>Continuar</button>' +
+                        extraBtn +
+                    '</div>' +
+                '</div>'
+            );
+            playSuccessSound();
+            setTimeout(function() { playSuccessSound(); }, 200);
+            setTimeout(function() { playVoiceAudio('victory'); }, 500);
+            stopBGM();
+        };
+
+        ThemeEngine.onDefeat = function() {
+            if (themeFinished) return;
+            themeFinished = true;
+            ThemeEngine.onStop();
+            stopTimer();
+            var defeatMsg = randomMsg(msgs.lost);
+            showThemeOverlay(
+                '<div class="race-result-box race-lost">' +
+                    '<div class="race-result-icon">🐢</div>' +
+                    '<h2>¡La tortuga llegó primero!</h2>' +
+                    '<p class="race-result-msg">' + defeatMsg + '</p>' +
+                    '<div class="race-result-actions">' +
+                        '<button class="btn-race-retry" onclick="location.reload()"><i class="bi bi-arrow-clockwise me-1"></i>Reintentar</button>' +
+                        '<button class="btn-race-exit" onclick="submitResults(' + score + ', 0)"><i class="bi bi-box-arrow-right me-1"></i>Salir</button>' +
+                    '</div>' +
+                '</div>'
+            );
+            playErrorSound();
+            setTimeout(function() { playVoiceAudio('defeat'); }, 500);
+            stopBGM();
+        };
+
+        ThemeEngine.onStop = function() {
+            if (interval) { clearInterval(interval); interval = null; }
+        };
+    };
+
+    // ============================================
+    // SKIN: Escalada de Montaña
+    // ============================================
+    THEME_REGISTRY['mountain_climb'] = function() {
+        let climberPct = 0;   // 0 = base, 100 = summit
+        let dangerPct = 0;    // fog/avalanche height rising from bottom
+        let interval = null;
+
+        const msgs = {
+            lost: [
+                "¡La niebla te alcanzó! Pero los verdaderos escaladores nunca se rinden. 🏔️",
+                "¡Casi llegas a la cima! Inténtalo de nuevo con más fuerza. 💪",
+                "¡La montaña sigue ahí esperándote! Vuelve a intentarlo. 🧗",
+                "¡No te rindas! Cada intento te acerca más a la cima. ⛰️",
+            ],
+            won: [
+                "¡Llegaste a la cima! La vista desde arriba es increíble. ¡Eres imparable! 🏔️🏆",
+                "¡Conquistaste la montaña! Con esfuerzo y dedicación todo es posible. 🌟",
+                "¡La cima es tuya! Recuerda: el camino importa tanto como la meta. ⭐",
+                "¡Escalador experto! Cada respuesta correcta fue un paso hacia el éxito. 🎉",
+            ],
+            survival: [
+                "¡Sobreviviste a la escalada! Pero no llegaste a la cima. ¿Podrás lograr una victoria perfecta? 🎯",
+                "¡La niebla no te alcanzó! Intenta responder todo correctamente para conquistar la cima. 🏔️",
+                "¡Buen trabajo resistiendo! Para una victoria perfecta, responde todas bien y llega a la cima. ✨",
+                "¡No te rendiste! La cima te espera. ¡Vuelve a intentarlo para una victoria completa! 💫",
+            ]
+        };
+
+        function updatePositions() {
+            const climber = document.getElementById('mountain-climber');
+            const danger = document.getElementById('danger-zone');
+            const cP = Math.max(0, Math.min(climberPct, 100));
+            const dP = Math.min(dangerPct, 100);
+            if (climber) climber.style.bottom = cP + '%';
+            if (danger) danger.style.height = dP + '%';
+        }
+
+        function updateCountdown(sec) {
+            const el = document.getElementById('mountain-countdown');
+            if (!el) return;
+            const m = String(Math.floor(sec / 60)).padStart(2, '0');
+            const s = String(sec % 60).padStart(2, '0');
+            el.textContent = m + ':' + s;
+            if (sec <= 30) el.classList.add('mountain-timer-danger');
+            else el.classList.remove('mountain-timer-danger');
+        }
+
+        ThemeEngine.active = true;
+
+        ThemeEngine.onStart = function() {
+            climberPct = 0;
+            dangerPct = 0;
+            updatePositions();
+            const tickMs = 200;
+            const totalTicks = (LEVEL_TIME_LIMIT * 1000) / tickMs;
+            const dangerStep = 100 / totalTicks;
+            updateCountdown(LEVEL_TIME_LIMIT);
+
+            interval = setInterval(function() {
+                if (themeFinished) { clearInterval(interval); return; }
+                dangerPct = Math.min(100, dangerPct + dangerStep);
+                updatePositions();
+                const elapsed = (Date.now() - gameStartTime) / 1000;
+                updateCountdown(Math.max(0, LEVEL_TIME_LIMIT - Math.floor(elapsed)));
+                if (ThemeEngine.checkDefeat()) { ThemeEngine.onDefeat(); }
+            }, tickMs);
+        };
+
+        ThemeEngine.onCorrect = function() {
+            if (themeFinished) return;
+            var step = 100 / questions.length;
+            climberPct = Math.min(100, climberPct + step);
+            updatePositions();
+            var climber = document.getElementById('mountain-climber');
+            if (climber) {
+                climber.classList.add('climber-jump');
+                setTimeout(function() { climber.classList.remove('climber-jump'); }, 500);
+            }
+        };
+
+        ThemeEngine.onIncorrect = function() {
+            if (themeFinished) return;
+            // Slip down: lose 30% of a step
+            var slip = (100 / questions.length) * 0.3;
+            climberPct = Math.max(0, climberPct - slip);
+            // Fog also gets a boost
+            var fogBoost = (100 / questions.length) * 0.4;
+            dangerPct = Math.min(100, dangerPct + fogBoost);
+            updatePositions();
+            var climber = document.getElementById('mountain-climber');
+            if (climber) {
+                climber.classList.add('climber-slip');
+                setTimeout(function() { climber.classList.remove('climber-slip'); }, 600);
+            }
+            if (ThemeEngine.checkDefeat()) { ThemeEngine.onDefeat(); }
+        };
+
+        ThemeEngine.checkVictory = function() { return climberPct >= 100; };
+        ThemeEngine.checkDefeat  = function() { return !themeFinished && dangerPct >= 15 && dangerPct >= climberPct && climberPct < 100; };
+
+        ThemeEngine.onVictory = function() {
+            themeFinished = true;
+            ThemeEngine.onStop();
+            var finalTime = stopTimer();
+            var percent = (score / maxScore) * 100;
+            var isPerfect = climberPct >= 100;
+            var stars = 1;
+            if (isPerfect) {
+                if (percent > 60) stars = 3;
+                else if (percent > 30) stars = 2;
+            } else {
+                stars = Math.max(1, Math.floor(percent / 50));
+            }
+            var icon = isPerfect ? '🏔️🏆' : '🏔️✅';
+            var title = isPerfect ? '¡Llegaste a la cima!' : '¡Sobreviviste a la escalada!';
+            var msg = isPerfect ? randomMsg(msgs.won) : randomMsg(msgs.survival);
+            var extraBtn = isPerfect ? '' :
+                '<button class="btn-race-retry" style="background:linear-gradient(135deg,#3498db,#2980b9);box-shadow:0 4px 15px rgba(52,152,219,0.3);" onclick="location.reload()"><i class="bi bi-stars me-1"></i>Intentar victoria perfecta</button>';
+            showThemeOverlay(
+                '<div class="race-result-box race-won">' +
+                    '<div class="race-result-icon">' + icon + '</div>' +
+                    '<h2>' + title + '</h2>' +
+                    (isPerfect ? '' : '<div class="race-survival-badge">Victoria de supervivencia</div>') +
+                    '<p class="race-result-msg">' + msg + '</p>' +
+                    '<div class="race-result-stats">' +
+                        '<span>Puntaje: ' + score + '/' + maxScore + '</span>' +
+                        '<span>Tiempo: ' + Math.floor(finalTime/60) + 'm ' + (finalTime%60) + 's</span>' +
+                    '</div>' +
+                    '<div class="race-result-actions">' +
+                        '<button class="btn-race-continue" onclick="submitResults(' + score + ', ' + stars + ')"><i class="bi bi-trophy me-1"></i>Continuar</button>' +
+                        extraBtn +
+                    '</div>' +
+                '</div>'
+            );
+            playSuccessSound();
+            setTimeout(function() { playSuccessSound(); }, 200);
+            setTimeout(function() { playVoiceAudio('victory'); }, 500);
+            stopBGM();
+        };
+
+        ThemeEngine.onDefeat = function() {
+            if (themeFinished) return;
+            themeFinished = true;
+            ThemeEngine.onStop();
+            stopTimer();
+            var defeatMsg = randomMsg(msgs.lost);
+            showThemeOverlay(
+                '<div class="race-result-box race-lost">' +
+                    '<div class="race-result-icon">🌫️⛰️</div>' +
+                    '<h2>¡La niebla te alcanzó!</h2>' +
+                    '<p class="race-result-msg">' + defeatMsg + '</p>' +
+                    '<div class="race-result-actions">' +
+                        '<button class="btn-race-retry" onclick="location.reload()"><i class="bi bi-arrow-clockwise me-1"></i>Reintentar</button>' +
+                        '<button class="btn-race-exit" onclick="submitResults(' + score + ', 0)"><i class="bi bi-box-arrow-right me-1"></i>Salir</button>' +
+                    '</div>' +
+                '</div>'
+            );
+            playErrorSound();
+            setTimeout(function() { playVoiceAudio('defeat'); }, 500);
+            stopBGM();
+        };
+
+        ThemeEngine.onStop = function() {
+            if (interval) { clearInterval(interval); interval = null; }
+        };
+    };
+
+    // --- Initialize the active theme (if any) ---
+    if (THEME_REGISTRY[LEVEL_THEME]) {
+        THEME_REGISTRY[LEVEL_THEME]();
+    }
 </script>
 
 <style>
@@ -945,6 +1694,28 @@
     font-size: 18px;
 }
 
+.bgm-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+    margin-left: 10px;
+}
+
+.bgm-toggle-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.5);
+}
+
 /* --- Game Container --- */
 .game-card {
     background: rgba(255, 255, 255, 0.95);
@@ -1023,6 +1794,20 @@
     font-weight: 600;
     color: #2c3e50;
     margin-bottom: 10px;
+}
+
+.question-image-container {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.question-image {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 12px;
+    border: 2px solid #e0e6ed;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    object-fit: contain;
 }
 
 .question-number {
@@ -1265,6 +2050,136 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
+}
+
+/* --- Voice Game --- */
+.voice-game {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.voice-status {
+    font-size: 16px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    background: rgba(52, 152, 219, 0.1);
+    color: #2c3e50;
+    transition: all 0.3s ease;
+}
+
+.voice-status-listening {
+    background: rgba(231, 76, 60, 0.1);
+    color: #e74c3c;
+    animation: voice-pulse 1.5s ease-in-out infinite;
+}
+
+.voice-status-done {
+    background: rgba(39, 174, 96, 0.1);
+    color: #27ae60;
+}
+
+.voice-status-error {
+    background: rgba(243, 156, 18, 0.1);
+    color: #e67e22;
+}
+
+@keyframes voice-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.voice-transcript-box {
+    min-height: 80px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid #e0e6ed;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    transition: border-color 0.3s ease;
+}
+
+.voice-transcript-box:has(.voice-transcript-text) {
+    border-color: #3498db;
+}
+
+.voice-transcript-placeholder {
+    color: #bdc3c7;
+    font-style: italic;
+    font-size: 16px;
+}
+
+.voice-transcript-text {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.voice-controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.voice-record-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 35px;
+    border: none;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+}
+
+.voice-record-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+}
+
+.voice-record-btn.voice-recording {
+    background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+    box-shadow: 0 4px 15px rgba(149, 165, 166, 0.3);
+    animation: voice-pulse 1s ease-in-out infinite;
+}
+
+.voice-submit-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 35px;
+    border: none;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+}
+
+.voice-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+}
+
+.voice-hint {
+    color: #7f8c8d;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
 /* --- Drag Drop Game --- */
@@ -1692,6 +2607,560 @@
     100% { transform: scale(1); }
 }
 
+/* ============================================ */
+/* === TORTOISE & HARE RACE TRACK CSS ===       */
+/* ============================================ */
+
+.race-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+}
+
+.race-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+    color: white;
+}
+
+.race-title {
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+}
+
+.race-timer {
+    font-family: monospace;
+    font-size: 18px;
+    font-weight: 700;
+    background: rgba(0,0,0,0.2);
+    padding: 4px 12px;
+    border-radius: 8px;
+}
+
+.race-timer-danger {
+    background: rgba(231, 76, 60, 0.8) !important;
+    animation: pulse 1s ease infinite;
+}
+
+.race-track {
+    position: relative;
+    padding: 20px 20px 0 20px;
+    background:
+        linear-gradient(180deg, #87CEEB 0%, #87CEEB 40%, transparent 40%),
+        linear-gradient(180deg, transparent 0%, #8B6914 60%, #6B4F12 100%);
+    background-size: 100% 100%;
+    min-height: 200px;
+}
+
+.race-lane {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    height: 65px;
+}
+
+.lane-label {
+    width: 90px;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    z-index: 2;
+    flex-shrink: 0;
+}
+
+.lane-track {
+    flex: 1;
+    position: relative;
+    height: 50px;
+    background: rgba(139, 119, 42, 0.4);
+    border-radius: 8px;
+    border: 2px solid rgba(255,255,255,0.2);
+    overflow: visible;
+}
+
+.hare-lane .lane-track {
+    background: rgba(210, 180, 140, 0.5);
+}
+
+.tortoise-lane .lane-track {
+    background: rgba(160, 140, 100, 0.5);
+}
+
+.finish-line {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    bottom: 0;
+    width: 30px;
+    z-index: 3;
+    background: repeating-linear-gradient(
+        0deg,
+        #000 0px, #000 8px,
+        #fff 8px, #fff 16px
+    );
+    opacity: 0.7;
+    border-radius: 4px;
+}
+
+.racer {
+    position: absolute;
+    left: 0%;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: left 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 5;
+}
+
+/* --- Pixel Art Hare --- */
+.pixel-hare {
+    width: 48px;
+    height: 48px;
+    image-rendering: pixelated;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='5' y='0' width='2' height='3' fill='%23deb887'/%3E%3Crect x='9' y='0' width='2' height='3' fill='%23deb887'/%3E%3Crect x='4' y='3' width='8' height='5' fill='%23deb887'/%3E%3Crect x='6' y='4' width='1' height='1' fill='%23333'/%3E%3Crect x='9' y='4' width='1' height='1' fill='%23333'/%3E%3Crect x='7' y='5' width='2' height='1' fill='%23d4956a'/%3E%3Crect x='3' y='8' width='10' height='4' fill='%23deb887'/%3E%3Crect x='5' y='12' width='2' height='2' fill='%23c9a56c'/%3E%3Crect x='9' y='12' width='2' height='2' fill='%23c9a56c'/%3E%3Crect x='12' y='9' width='3' height='2' fill='%23deb887'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));
+}
+
+/* --- Pixel Art Tortoise --- */
+.pixel-tortoise {
+    width: 48px;
+    height: 48px;
+    image-rendering: pixelated;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='2' width='8' height='6' rx='2' fill='%23228B22'/%3E%3Crect x='5' y='3' width='6' height='4' rx='1' fill='%23006400'/%3E%3Crect x='6' y='3' width='2' height='2' fill='%2332CD32'/%3E%3Crect x='9' y='4' width='2' height='2' fill='%2332CD32'/%3E%3Crect x='1' y='6' width='3' height='3' fill='%238B7355'/%3E%3Crect x='2' y='5' width='2' height='1' fill='%238B7355'/%3E%3Crect x='2' y='6' width='1' height='1' fill='%23333'/%3E%3Crect x='4' y='8' width='3' height='3' fill='%238B7355'/%3E%3Crect x='9' y='8' width='3' height='3' fill='%238B7355'/%3E%3Crect x='12' y='7' width='3' height='2' fill='%238B7355'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));
+}
+
+.track-ground {
+    height: 30px;
+    background: linear-gradient(180deg, #4a7c3f, #3d6b34);
+    border-top: 3px solid #2d5a24;
+    position: relative;
+}
+
+.track-ground::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: repeating-linear-gradient(90deg, transparent, transparent 20px, #5a9c4f 20px, #5a9c4f 25px);
+}
+
+/* Hare hop animation */
+.hare-hop {
+    animation: hopBounce 0.4s ease;
+}
+
+@keyframes hopBounce {
+    0% { transform: translateY(-50%); }
+    30% { transform: translateY(-50%) translateX(8px) translateY(-15px); }
+    60% { transform: translateY(-50%) translateX(4px); }
+    100% { transform: translateY(-50%); }
+}
+
+/* Tortoise speed boost animation (on wrong answer) */
+.tortoise-boost .pixel-tortoise {
+    animation: tortoiseRush 0.6s ease;
+    filter: drop-shadow(0 0 8px rgba(231, 76, 60, 0.8));
+}
+
+@keyframes tortoiseRush {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.3) translateX(6px); }
+    60% { transform: scale(1.1) translateX(3px); }
+    100% { transform: scale(1); }
+}
+
+/* --- Race Result Overlay --- */
+#race-result-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.5s ease;
+}
+
+.race-result-box {
+    background: white;
+    border-radius: 25px;
+    padding: 50px 40px;
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: bounceIn 0.6s ease;
+}
+
+.race-result-icon {
+    font-size: 72px;
+    margin-bottom: 15px;
+}
+
+.race-result-box h2 {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+.race-lost h2 { color: #e74c3c; }
+.race-won h2 { color: #27ae60; }
+
+.race-survival-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3);
+}
+
+.race-result-msg {
+    font-size: 16px;
+    color: #555;
+    margin-bottom: 25px;
+    line-height: 1.6;
+}
+
+.race-result-stats {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    margin-bottom: 25px;
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 15px;
+}
+
+.race-result-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-race-retry {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 14px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+}
+
+.btn-race-retry:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+}
+
+.btn-race-exit {
+    background: #95a5a6;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 14px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-race-exit:hover {
+    background: #7f8c8d;
+    transform: translateY(-2px);
+}
+
+.btn-race-continue {
+    background: linear-gradient(135deg, #f1c40f, #f39c12);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 16px 40px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 20px rgba(241, 196, 15, 0.3);
+}
+
+.btn-race-continue:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(241, 196, 15, 0.4);
+}
+
+/* Cloud decorations for sky */
+.race-track::before,
+.race-track::after {
+    content: '☁';
+    position: absolute;
+    top: 5px;
+    font-size: 28px;
+    color: rgba(255,255,255,0.7);
+    z-index: 1;
+    animation: cloudDrift 15s linear infinite;
+}
+
+.race-track::before { left: 15%; animation-delay: 0s; }
+.race-track::after { left: 60%; animation-delay: 7s; font-size: 22px; top: 12px; }
+
+@keyframes cloudDrift {
+    0% { transform: translateX(0); opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { transform: translateX(80px); opacity: 0.5; }
+}
+
+/* ============================================ */
+/* === MOUNTAIN CLIMB THEME CSS ===             */
+/* ============================================ */
+
+.mountain-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+}
+
+.mountain-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #8B4513, #A0522D);
+    color: white;
+}
+
+.mountain-title {
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+}
+
+.mountain-timer {
+    font-family: monospace;
+    font-size: 18px;
+    font-weight: 700;
+    background: rgba(0,0,0,0.2);
+    padding: 4px 12px;
+    border-radius: 8px;
+}
+
+.mountain-timer-danger {
+    background: rgba(231, 76, 60, 0.8) !important;
+    animation: pulse 1s ease infinite;
+}
+
+.mountain-scene {
+    position: relative;
+    height: 280px;
+    background: linear-gradient(180deg,
+        #1a1a2e 0%,
+        #16213e 15%,
+        #0f3460 30%,
+        #87CEEB 60%,
+        #a8d8ea 100%
+    );
+    overflow: hidden;
+}
+
+/* Stars in the sky */
+.mountain-scene::before {
+    content: '✦ ✧ ✦';
+    position: absolute;
+    top: 8px;
+    left: 20%;
+    font-size: 10px;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 20px;
+    z-index: 1;
+}
+
+.summit-flag {
+    position: absolute;
+    top: 8px;
+    right: 50%;
+    transform: translateX(50%);
+    font-size: 28px;
+    z-index: 10;
+    animation: flagWave 2s ease-in-out infinite;
+}
+
+@keyframes flagWave {
+    0%, 100% { transform: translateX(50%) rotate(-5deg); }
+    50% { transform: translateX(50%) rotate(5deg); }
+}
+
+.mountain-body {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: calc(100% - 60px);
+    /* Mountain shape via clip-path */
+    background: linear-gradient(180deg,
+        #f5f5f5 0%,
+        #d4d4d4 10%,
+        #8B7355 25%,
+        #6B4F12 50%,
+        #5a4010 80%,
+        #4a3510 100%
+    );
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+    z-index: 2;
+}
+
+/* Snow cap */
+.mountain-body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 40px;
+    background: white;
+    clip-path: polygon(50% 0%, 85% 100%, 15% 100%);
+    z-index: 3;
+}
+
+.height-marker {
+    position: absolute;
+    left: -5px;
+    right: -5px;
+    height: 1px;
+    border-top: 1px dashed rgba(255,255,255,0.3);
+    z-index: 4;
+}
+
+.height-marker span {
+    position: absolute;
+    left: -40px;
+    top: -8px;
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+}
+
+.climber {
+    position: absolute;
+    bottom: 0%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 8;
+    transition: bottom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Pixel Art Climber */
+.pixel-climber {
+    width: 36px;
+    height: 36px;
+    image-rendering: pixelated;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='3' r='2.5' fill='%23FFD700'/%3E%3Crect x='6' y='2' width='4' height='2' fill='%23e74c3c'/%3E%3Crect x='6' y='5' width='4' height='5' fill='%23e74c3c'/%3E%3Crect x='5' y='6' width='2' height='4' fill='%23e74c3c'/%3E%3Crect x='9' y='6' width='2' height='4' fill='%23e74c3c'/%3E%3Crect x='4' y='5' width='2' height='1' fill='%23FFD700'/%3E%3Crect x='10' y='5' width='2' height='1' fill='%23FFD700'/%3E%3Crect x='6' y='10' width='2' height='3' fill='%232c3e50'/%3E%3Crect x='8' y='10' width='2' height='3' fill='%232c3e50'/%3E%3Crect x='5' y='13' width='3' height='1' fill='%238B4513'/%3E%3Crect x='8' y='13' width='3' height='1' fill='%238B4513'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.5));
+}
+
+/* Danger zone (fog rising from bottom) */
+.danger-zone {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 0%;
+    background: linear-gradient(180deg,
+        rgba(200, 200, 220, 0.9) 0%,
+        rgba(180, 180, 200, 0.7) 40%,
+        rgba(160, 160, 180, 0.5) 100%
+    );
+    z-index: 6;
+    transition: height 0.3s ease;
+    border-top: 2px solid rgba(255,255,255,0.4);
+}
+
+.danger-label {
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(100, 100, 120, 0.9);
+    white-space: nowrap;
+}
+
+.mountain-ground {
+    height: 30px;
+    background: linear-gradient(180deg, #4a7c3f, #3d6b34);
+    border-top: 3px solid #2d5a24;
+    position: relative;
+}
+
+/* Climber jump animation (correct answer) */
+.climber-jump {
+    animation: climbJump 0.5s ease;
+}
+
+@keyframes climbJump {
+    0% { transform: translateX(-50%); }
+    30% { transform: translateX(-50%) scale(1.2) translateY(-10px); }
+    60% { transform: translateX(-50%) scale(1.05); }
+    100% { transform: translateX(-50%); }
+}
+
+/* Climber slip animation (wrong answer) */
+.climber-slip {
+    animation: climbSlip 0.6s ease;
+}
+
+@keyframes climbSlip {
+    0% { transform: translateX(-50%); }
+    20% { transform: translateX(-40%) rotate(15deg); }
+    50% { transform: translateX(-60%) rotate(-10deg); }
+    80% { transform: translateX(-50%) rotate(5deg); }
+    100% { transform: translateX(-50%) rotate(0deg); }
+}
+
+/* Fog pulse when danger is close */
+.danger-zone[style*="height: 7"],
+.danger-zone[style*="height: 8"],
+.danger-zone[style*="height: 9"] {
+    animation: fogPulse 1.5s ease infinite;
+}
+
+@keyframes fogPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
 /* --- Responsive Design --- */
 @media (max-width: 768px) {
     .game-header-card {
@@ -1757,6 +3226,45 @@
     
     .completion-title {
         font-size: 28px;
+    }
+
+    .lane-label {
+        width: 60px;
+        font-size: 9px;
+    }
+
+    .pixel-hare, .pixel-tortoise {
+        width: 36px;
+        height: 36px;
+    }
+
+    .race-result-box {
+        padding: 30px 20px;
+    }
+
+    .race-result-icon {
+        font-size: 48px;
+    }
+
+    .race-result-box h2 {
+        font-size: 20px;
+    }
+
+    .mountain-scene {
+        height: 200px;
+    }
+
+    .mountain-body {
+        width: 150px;
+    }
+
+    .pixel-climber {
+        width: 28px;
+        height: 28px;
+    }
+
+    .summit-flag {
+        font-size: 20px;
     }
 }
 </style>

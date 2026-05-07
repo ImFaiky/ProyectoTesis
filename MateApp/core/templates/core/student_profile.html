@@ -1,0 +1,405 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+    </a>
+</div>
+
+<!-- Profile Header -->
+<div class="profile-header mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <div class="d-flex align-items-center">
+                <div class="profile-avatar me-4">
+                    {% if student.avatar %}
+                        <img src="{{ student.avatar.url }}" alt="{{ student.username }}" class="rounded-circle" width="90" height="90">
+                    {% else %}
+                        <div class="rounded-circle bg-white bg-opacity-25 text-white d-flex align-items-center justify-content-center" style="width: 90px; height: 90px; font-size: 2.5rem; font-weight: 700;">
+                            {{ student.username|first|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <h1 class="text-white fw-bold mb-1">{{ student.username }}</h1>
+                    {% if student.email %}
+                        <p class="text-white-50 mb-1"><i class="bi bi-envelope me-1"></i>{{ student.email }}</p>
+                    {% endif %}
+                    <p class="text-white-50 mb-0"><i class="bi bi-calendar me-1"></i>Joined {{ student.date_joined|date:"M d, Y" }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+            <a href="{% url 'student_edit' student.pk %}" class="btn btn-light btn-sm">
+                <i class="bi bi-pencil me-1"></i>Edit Student
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="stats-icon-sm bg-primary bg-opacity-10 mx-auto mb-2">
+                    <i class="bi bi-trophy-fill text-primary"></i>
+                </div>
+                <div class="h3 fw-bold mb-0">{{ student.total_points }}</div>
+                <div class="small text-muted">Total Points</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="stats-icon-sm bg-success bg-opacity-10 mx-auto mb-2">
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                </div>
+                <div class="h3 fw-bold mb-0">{{ total_levels_completed }}</div>
+                <div class="small text-muted">Levels Completed</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="stats-icon-sm bg-warning bg-opacity-10 mx-auto mb-2">
+                    <i class="bi bi-star-fill text-warning"></i>
+                </div>
+                <div class="h3 fw-bold mb-0">{{ total_stars }}</div>
+                <div class="small text-muted">Stars Earned</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="stats-icon-sm bg-info bg-opacity-10 mx-auto mb-2">
+                    <i class="bi bi-graph-up text-info"></i>
+                </div>
+                <div class="h3 fw-bold mb-0">{{ avg_score }}%</div>
+                <div class="small text-muted">Avg Score</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attempts & Time Stats -->
+<div class="row mb-4">
+    <div class="col-md-6 col-6 mb-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="stats-icon-sm bg-danger bg-opacity-10 mx-auto mb-2">
+                    <i class="bi bi-arrow-repeat text-danger"></i>
+                </div>
+                <div class="h3 fw-bold mb-0">{{ total_attempts }}</div>
+                <div class="small text-muted">Total Attempts</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-6 mb-3">
+        <div class="card border-0 shadow-sm text-center h-100">
+            <div class="card-body">
+                <div class="stats-icon-sm bg-secondary bg-opacity-10 mx-auto mb-2">
+                    <i class="bi bi-stopwatch text-secondary"></i>
+                </div>
+                <div class="h3 fw-bold mb-0">{{ avg_time }}s</div>
+                <div class="small text-muted">Avg Time per Attempt</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attempts & Time Charts -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-4 pb-0">
+                <h5 class="fw-bold mb-0">
+                    <i class="bi bi-bar-chart text-primary me-2"></i>Attempts per Level
+                </h5>
+                <small class="text-muted">Number of attempts and best time for each level</small>
+            </div>
+            <div class="card-body" style="height: 300px;">
+                <canvas id="levelAttemptsChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-4 pb-0">
+                <h5 class="fw-bold mb-0">
+                    <i class="bi bi-clock-history text-warning me-2"></i>Score & Time Evolution
+                </h5>
+                <small class="text-muted">How score and time change across attempts over time</small>
+            </div>
+            <div class="card-body" style="height: 300px;">
+                <canvas id="attemptHistoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Discipline Progress -->
+<div class="row">
+    <div class="col-lg-7 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-4">
+                <h5 class="fw-bold mb-0">
+                    <i class="bi bi-collection text-primary me-2"></i>Progress by Discipline
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for disc_data in disciplines_progress %}
+                <div class="discipline-row mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center">
+                            <div class="disc-color-dot me-2" data-color="{{ disc_data.discipline.color }}"></div>
+                            <span class="fw-semibold">{{ disc_data.discipline.name }}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="badge bg-primary bg-opacity-10 text-primary">
+                                {{ disc_data.count }} levels
+                            </span>
+                            <span class="badge bg-warning bg-opacity-10 text-warning">
+                                <i class="bi bi-star-fill me-1"></i>{{ disc_data.total_stars }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" role="progressbar" data-progress="{{ disc_data.avg_score }}"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">Avg Score</small>
+                        <small class="fw-semibold">{{ disc_data.avg_score }}%</small>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                    <p class="mt-2 mb-0">No progress data yet.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="col-lg-5 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-4">
+                <h5 class="fw-bold mb-0">
+                    <i class="bi bi-clock-history text-info me-2"></i>Recent Activity
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for record in recent_activity %}
+                    <div class="list-group-item border-0 px-4 py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-semibold">{{ record.level.discipline.name }} - Level {{ record.level.number }}</div>
+                                <div class="small text-muted">{{ record.completed_at|date:"M d, Y H:i" }}</div>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold">{{ record.score }}%</div>
+                                <div>
+                                    {% for i in "12345"|make_list %}
+                                        {% if i|add:0 <= record.stars %}
+                                            <i class="bi bi-star-fill text-warning small"></i>
+                                        {% else %}
+                                            <i class="bi bi-star text-muted small"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                        <p class="mt-2 mb-0">No activity yet.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.profile-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.profile-avatar img,
+.profile-avatar > div {
+    border: 3px solid rgba(255,255,255,0.3);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.stats-icon-sm {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.disc-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #6c757d;
+}
+
+.discipline-row:last-child {
+    margin-bottom: 0 !important;
+}
+</style>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-progress]').forEach(function(el) {
+        el.style.width = el.getAttribute('data-progress') + '%';
+    });
+    document.querySelectorAll('.disc-color-dot[data-color]').forEach(function(el) {
+        el.style.backgroundColor = el.getAttribute('data-color');
+    });
+
+    // --- Attempts per Level Chart ---
+    const levelData = JSON.parse('{{ level_attempt_json|escapejs }}');
+    if (levelData.length > 0) {
+        new Chart(document.getElementById('levelAttemptsChart'), {
+            type: 'bar',
+            data: {
+                labels: levelData.map(l => l.level_label),
+                datasets: [
+                    {
+                        label: 'Attempts',
+                        data: levelData.map(l => l.attempts),
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderRadius: 6,
+                        yAxisID: 'y',
+                    },
+                    {
+                        label: 'Best Time (s)',
+                        data: levelData.map(l => l.best_time),
+                        backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                        borderRadius: 6,
+                        yAxisID: 'y1',
+                    },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function(ctx) {
+                                const d = levelData[ctx.dataIndex];
+                                return `Avg Time: ${d.avg_time}s\nBest Score: ${d.best_score}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        position: 'left',
+                        title: { display: true, text: 'Attempts' },
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        title: { display: true, text: 'Time (s)' },
+                        grid: { drawOnChartArea: false },
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { maxRotation: 45 },
+                    }
+                }
+            }
+        });
+    }
+
+    // --- Score & Time Evolution Chart ---
+    const history = JSON.parse('{{ attempt_history_json|escapejs }}');
+    if (history.length > 0) {
+        new Chart(document.getElementById('attemptHistoryChart'), {
+            type: 'line',
+            data: {
+                labels: history.map((h, i) => `#${i + 1}`),
+                datasets: [
+                    {
+                        label: 'Score',
+                        data: history.map(h => h.score),
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        yAxisID: 'y',
+                    },
+                    {
+                        label: 'Time (s)',
+                        data: history.map(h => h.time_seconds),
+                        borderColor: 'rgba(255, 193, 7, 1)',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        yAxisID: 'y1',
+                    },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            title: function(ctx) {
+                                const h = history[ctx[0].dataIndex];
+                                return `${h.level_label} — ${h.date}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        position: 'left',
+                        title: { display: true, text: 'Score' },
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        title: { display: true, text: 'Time (s)' },
+                        grid: { drawOnChartArea: false },
+                    },
+                    x: {
+                        grid: { display: false },
+                        title: { display: true, text: 'Attempt #' },
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% endblock %}

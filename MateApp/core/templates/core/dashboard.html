@@ -1,49 +1,232 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<div class="row mb-4 align-items-center">
-    <div class="col">
-        <h1 class="display-5 fw-bold text-dark">Welcome, {{ user.username }}!</h1>
-        <p class="text-muted lead">Continuing your learning journey.</p>
-    </div>
-</div>
-
-<div class="row g-4">
-    {% for discipline in disciplines %}
-    <div class="col-md-6 col-lg-4">
-        <a href="{% url 'discipline_detail' discipline.id %}" class="text-decoration-none text-dark">
-            <div class="card h-100 border-0 shadow-sm hover-scale overflow-hidden" style="border-radius: 1rem;">
-                <!-- Color Header / Background -->
-                <div class="card-body text-center p-5 d-flex flex-column align-items-center justify-content-center text-white"
-                    style="background-color: {{ discipline.color|default:'#0d6efd' }};">
-
-                    {% if discipline.icon %}
-                    <img src="{{ discipline.icon.url }}" alt="{{ discipline.name }} icon" class="mb-3"
-                        style="width: 80px; height: 80px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">
-                    {% else %}
-                    <i class="bi bi-book-half display-1 mb-3"></i>
-                    {% endif %}
-
-                    <h2 class="card-title fw-bold">{{ discipline.name }}</h2>
-                </div>
-                <!-- Details Footer -->
-                <div class="card-footer bg-white border-0 p-3 d-flex justify-content-between align-items-center">
-                    <span class="badge bg-light text-dark border"><i class="bi bi-bar-chart"></i> Difficulty: {{
-                        discipline.difficulty }}</span>
-                    <span class="btn btn-sm btn-outline-dark rounded-pill px-3">Start <i
-                            class="bi bi-chevron-right"></i></span>
+<!-- Student Dashboard Header -->
+<div class="student-header mb-4">
+    <div class="student-header-particles" id="studentHeaderParticles"></div>
+    <div class="position-relative" style="z-index: 2;">
+        <div class="row align-items-center">
+            <div class="col-lg-7">
+                <div class="d-flex align-items-center">
+                    <div class="student-header-avatar me-3">
+                        {% if user.avatar %}
+                            <img src="{{ user.avatar.url }}" alt="Avatar" class="rounded-circle" width="64" height="64" style="object-fit:cover; border: 3px solid rgba(255,255,255,0.4);">
+                        {% else %}
+                            <div class="rounded-circle bg-white bg-opacity-25 d-flex align-items-center justify-content-center" style="width:64px;height:64px;border:3px solid rgba(255,255,255,0.4);font-size:1.75rem;font-weight:700;">
+                                {{ user.username|first|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h1 class="mb-0 fw-bold" style="font-size: 1.75rem;">
+                            Welcome back, {{ user.username }}!
+                        </h1>
+                        <p class="mb-0 opacity-75" style="font-size: 0.95rem;">
+                            <i class="bi bi-rocket-takeoff me-1"></i>Continue your learning journey
+                        </p>
+                    </div>
                 </div>
             </div>
-        </a>
-    </div>
-    {% empty %}
-    <div class="col-12">
-        <div class="alert alert-info text-center py-5">
-            <i class="bi bi-info-circle display-4 d-block mb-3"></i>
-            <h4>No disciplines found.</h4>
-            <p>Please ask an administrator to add some content.</p>
+            <div class="col-lg-5">
+                <div class="d-flex align-items-center justify-content-lg-end gap-3 flex-wrap mt-3 mt-lg-0">
+                    <div class="student-header-pill">
+                        <i class="bi bi-star-fill me-1"></i> {{ user.total_points }} Points
+                    </div>
+                    <div class="student-header-pill">
+                        <i class="bi bi-layers-fill me-1"></i> Level {{ user.current_level }}
+                    </div>
+                    <a href="{% url 'my_progress' %}" class="student-header-pill text-white text-decoration-none" style="background:rgba(255,255,255,0.3);">
+                        <i class="bi bi-bar-chart-line me-1"></i> My Progress
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
-    {% endfor %}
 </div>
+
+<!-- My Groups -->
+{% if classrooms_data %}
+{% for item in classrooms_data %}
+<div class="mb-5">
+    <div class="d-flex align-items-center mb-3">
+        <h3 class="fw-bold mb-0">
+            <i class="bi bi-building text-primary me-2"></i>{{ item.classroom.name }}
+        </h3>
+        <span class="badge bg-primary bg-opacity-10 text-primary ms-3 fs-6">
+            <i class="bi bi-person-badge me-1"></i>{{ item.classroom.teacher.first_name|default:item.classroom.teacher.username }}
+        </span>
+        <span class="badge bg-info bg-opacity-10 text-info ms-2 fs-6">
+            {{ item.disciplines|length }} disciplines
+        </span>
+    </div>
+
+    <div class="row g-4">
+        {% for discipline in item.disciplines %}
+        <div class="col-md-6 col-lg-4">
+            <a href="{% url 'discipline_detail' discipline.id %}" class="text-decoration-none">
+                <div class="card h-100 border-0 shadow-sm discipline-play-card overflow-hidden">
+                    <div class="card-body text-center p-5 d-flex flex-column align-items-center justify-content-center text-white position-relative discipline-card-bg"
+                        style="background-color: {{ discipline.color|default:'#0d6efd' }};">
+                        <div class="discipline-card-glow"></div>
+                        {% if discipline.icon %}
+                        <img src="{{ discipline.icon.url }}" alt="{{ discipline.name }} icon" class="mb-3 position-relative"
+                            style="width: 80px; height: 80px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); z-index:2;">
+                        {% else %}
+                        <i class="bi bi-book-half display-1 mb-3 position-relative" style="z-index:2;"></i>
+                        {% endif %}
+                        <h2 class="card-title fw-bold position-relative" style="z-index:2;">{{ discipline.name }}</h2>
+                    </div>
+                    <div class="card-footer bg-white border-0 p-3 d-flex justify-content-between align-items-center">
+                        <span class="badge bg-light text-dark border">
+                            <i class="bi bi-speedometer2 me-1"></i>
+                            {% if discipline.difficulty == 1 %}Easy
+                            {% elif discipline.difficulty == 2 %}Medium
+                            {% elif discipline.difficulty == 3 %}Hard
+                            {% else %}{{ discipline.difficulty }}{% endif %}
+                        </span>
+                        <span class="btn btn-sm btn-outline-dark rounded-pill px-3 play-btn">
+                            Play <i class="bi bi-play-fill"></i>
+                        </span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-3 text-muted">
+                <i class="bi bi-collection" style="font-size: 2rem; opacity: 0.4;"></i>
+                <p class="mt-2 mb-0">This classroom has no disciplines assigned yet.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="text-center py-5">
+    <div class="mb-3" style="font-size: 4rem; opacity: 0.3;">
+        <i class="bi bi-inbox"></i>
+    </div>
+    <h4 class="fw-bold text-muted">You are not enrolled in any classroom</h4>
+    <p class="text-muted">Ask your teacher for the code and password to join a classroom.</p>
+    <a href="{% url 'join_classroom' %}" class="btn btn-primary btn-lg mt-2">
+        <i class="bi bi-search me-1"></i> Find a Classroom
+    </a>
+</div>
+{% endif %}
+
+<style>
+.student-header {
+    background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 50%, #8b5cf6 100%);
+    background-size: 200% 200%;
+    animation: studentGradient 8s ease infinite;
+    color: white;
+    padding: 2rem 2.5rem;
+    border-radius: 20px;
+    box-shadow: 0 8px 30px rgba(99, 102, 241, 0.35);
+    position: relative;
+    overflow: hidden;
+}
+
+@keyframes studentGradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.student-header-particles {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.student-header-particle {
+    position: absolute;
+    background: rgba(255,255,255,0.08);
+    border-radius: 50%;
+    animation: studentParticleFloat 6s ease-in-out infinite;
+}
+
+@keyframes studentParticleFloat {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 0.4; }
+    50% { transform: translateY(-15px) scale(1.1); opacity: 0.7; }
+}
+
+.student-header-pill {
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(8px);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.15);
+    white-space: nowrap;
+}
+
+.discipline-play-card {
+    border-radius: 16px !important;
+    transition: all 0.35s ease;
+}
+
+.discipline-play-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.15) !important;
+}
+
+.discipline-play-card:hover .play-btn {
+    background: #212529;
+    color: white;
+}
+
+.discipline-card-bg {
+    position: relative;
+    overflow: hidden;
+}
+
+.discipline-card-glow {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 60%);
+    animation: glowPulse 4s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes glowPulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+.play-btn {
+    transition: all 0.3s ease;
+}
+</style>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var container = document.getElementById('studentHeaderParticles');
+    if (container) {
+        for (var i = 0; i < 8; i++) {
+            var p = document.createElement('div');
+            p.className = 'student-header-particle';
+            var size = Math.random() * 50 + 20;
+            p.style.width = size + 'px';
+            p.style.height = size + 'px';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.top = Math.random() * 100 + '%';
+            p.style.animationDelay = (Math.random() * 4) + 's';
+            p.style.animationDuration = (Math.random() * 4 + 4) + 's';
+            container.appendChild(p);
+        }
+    }
+});
+</script>
+{% endblock %}
 {% endblock %}

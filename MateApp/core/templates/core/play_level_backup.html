@@ -1,0 +1,537 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Game Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">{{ level.discipline.name }} - Level {{ level.number }}</h2>
+            <small class="text-muted">Question <span id="current-q-num">1</span> of <span
+                    id="total-q-num">--</span></small>
+        </div>
+        <div class="text-end">
+            <h4 class="mb-0 text-primary">Score: <span id="score-display">0</span></h4>
+            <div id="stars-display" class="text-warning h5">
+                <i class="bi bi-star"></i>
+                <i class="bi bi-star"></i>
+                <i class="bi bi-star"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <div class="card shadow-lg" style="min-height: 400px;">
+        <div class="card-body p-4 d-flex flex-column justify-content-center" id="game-container">
+            <!-- Dynamic Content Here -->
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Form for Submission -->
+    <form method="post" id="game-form" style="display:none;">
+        {% csrf_token %}
+        <input type="hidden" name="score" id="input-score">
+        <input type="hidden" name="stars" id="input-stars">
+        <input type="hidden" name="answers" id="input-answers">
+    </form>
+</div>
+
+<!-- Config Data -->
+{{ level.game_config|json_script:"game-config-data" }}
+
+<script>
+    // --- Game State ---
+    let config = {};
+    let questions = [];
+    let currentIndex = 0;
+    let score = 0;
+    let maxScore = 0; // To calculate stars
+    let correctCount = 0;
+    let userAnswers = []; // Store { q_index, question_type, answer, correct }
+
+    // --- Inits ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const scriptTag = document.getElementById('game-config-data');
+        try {
+            const raw = JSON.parse(scriptTag.textContent);
+            // Normalize Config (Old vs New)
+            if (Array.isArray(raw.questions)) {
+                questions = raw.questions;
+            } else {
+                // Legacy: Convert Dict to List
+                questions = [];
+                for (const [key, val] of Object.entries(raw)) {
+                    if (val && (val.question || val.pairs)) {
+                        val.type = key;
+                        questions.push(val);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Error parsing game config", e);
+            questions = [];
+        }
+
+        if (questions.length === 0) {
+            document.getElementById('game-container').innerHTML = '<div class="text-center"><h3>No questions in this level yet!</h3><a href="{% url "dashboard" %}" class="btn btn-primary mt-3">Back</a></div>';
+            return;
+        }
+
+        // Initialize display
+        document.getElementById('total-q-num').textContent = questions.length;
+        maxScore = questions.length * 10; // Assume 10 points per question for simplicity
+
+        startGame();
+    });
+
+    function startGame() {
+        currentIndex = 0;
+        score = 0;
+        correctCount = 0;
+        userAnswers = [];
+        updateStats();
+        showQuestion(currentIndex);
+    }
+
+    function updateStats() {
+        document.getElementById('score-display').textContent = score;
+        document.getElementById('current-q-num').textContent = currentIndex + 1;
+
+        // Simple star logic visualization (just for show during game)
+        // Final calculation happens at end
+    }
+
+    // --- Renderers ---
+    function showQuestion(index) {
+        if (index >= questions.length) {
+            finishGame();
+            return;
+        }
+
+        const container = document.getElementById('game-container');
+        container.innerHTML = ''; // Clear previous
+
+        const qData = questions[index];
+        const type = qData.type;
+        const q = qData.question || {};
+
+        // Title / Question Text
+        if (q.text) {
+            const title = document.createElement('h3');
+            title.className = "text-center mb-4";
+            title.textContent = q.text;
+            container.appendChild(title);
+        }
+
+        // Audio Helper
+        if (q.audio) {
+            const btn = document.createElement('button');
+            btn.className = "btn btn-info btn-sm mb-3 d-block mx-auto";
+            btn.innerHTML = '<i class="bi bi-volume-up-fill"></i> Play Audio';
+            btn.onclick = () => new Audio(q.audio).play(); // Basic implementation
+            container.appendChild(btn);
+        }
+
+        // Render specific type
+        const contentDiv = document.createElement('div');
+        contentDiv.className = "w-100";
+
+        if (type === 'option' || type === 'optionAudio' || type === 'speech') {
+            renderOptionGame(contentDiv, qData);
+        } else if (type === 'cards') {
+            renderCardsGame(contentDiv, qData);
+        } else if (type === 'dragDrop') {
+            renderDragDropGame(contentDiv, qData);
+        } else if (type === 'writing') {
+            renderWritingGame(contentDiv, qData);
+        } else if (type === 'matchingGame') {
+            renderMatchingGame(contentDiv, qData);
+        } else if (type === 'complete_word') {
+            renderCompleteWordGame(contentDiv, qData);
+        } else {
+            contentDiv.innerHTML = `<p class="text-center text-danger">Unsupported game type: ${type}</p> <button class="btn btn-secondary" onclick="nextQuestion()">Skip</button>`;
+        }
+
+        container.appendChild(contentDiv);
+        updateStats();
+    }
+
+    // -- Sub-Renderers --
+
+    function renderOptionGame(container, data) {
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = "row g-3 justify-content-center";
+
+        const opts = data.question.options || [];
+        opts.forEach(opt => {
+            if (!opt) return; // Skip empty
+            const col = document.createElement('div');
+            col.className = "col-md-6 col-lg-3";
+            col.innerHTML = `
+                <button class="btn btn-outline-primary w-100 py-4 fw-bold fs-5 game-option-btn">
+                    ${opt}
+                </button>
+            `;
+            const btn = col.querySelector('button');
+            btn.onclick = () => checkAnswer(opt, data.question.correct_answer);
+            optionsDiv.appendChild(col);
+        });
+        container.appendChild(optionsDiv);
+    }
+
+    function renderCardsGame(container, data) {
+        // Cards usually implies options with images/icons
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = "row g-3 justify-content-center";
+
+        const opts = data.options || [];
+        opts.forEach(opt => {
+            // opt has {text, icon}
+            const col = document.createElement('div');
+            col.className = "col-6 col-md-3";
+
+            // Check if "icon" is a URL or a simple path. 
+            // Ideally we'd have proper image handling. For now assuming URL or text.
+            let imgHtml = '';
+            if (opt.icon) {
+                imgHtml = `<img src="${opt.icon}" class="img-fluid mb-2" style="max-height:100px; object-fit:contain;">`;
+            }
+
+            col.innerHTML = `
+                 <button class="btn btn-outline-secondary w-100 p-3 h-100 game-card-btn">
+                     ${imgHtml}
+                     <div class="fw-bold">${opt.text}</div>
+                 </button>
+             `;
+            const btn = col.querySelector('button');
+            // For cards, usually checking against correct_answer in question header
+            // OR checking if this specific card is the "correct" one.
+            // Standardizing: The question has 'correct_answer' which basically matches one of the options text.
+            btn.onclick = () => checkAnswer(opt.text, data.question.correct_answer);
+            optionsDiv.appendChild(col);
+        });
+        container.appendChild(optionsDiv);
+    }
+
+    function renderWritingGame(container, data) {
+        container.innerHTML = `
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <input type="text" id="writing-input" class="form-control form-control-lg text-center mb-3" placeholder="Type answer here..." autocomplete="off">
+                    <button class="btn btn-success w-100" onclick="checkWritingAnswer('${data.question.correct_answer}')">Check</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function checkWritingAnswer(correct) {
+        const input = document.getElementById('writing-input').value.trim();
+        checkAnswer(input, correct);
+    }
+
+    function renderCompleteWordGame(container, data) {
+        // Show word with blanks
+        // question_word usually has the blanks e.g. "B_NA_A"
+        // missing_letters has ["A", "N"]
+        // OR we might just have `word` "BANANA" and `missing_letters` ["A", "N"]
+        // Let's assume `question.word` is the target "BANANA"
+        // We need to build a UI to fill it.
+
+        const target = data.question.word || "";
+        const displayed = data.question.question_word || target.replace(/[AEIOU]/g, '_'); // Fallback logic
+
+        container.innerHTML = `
+            <div class="text-center mb-4">
+                <h1 class="display-4 letter-spacing-large">${displayed}</h1>
+            </div>
+            <div class="row justify-content-center">
+                 <div class="col-md-6">
+                    <input type="text" id="complete-input" class="form-control form-control-lg text-center mb-3" placeholder="Type the complete word" autocomplete="off">
+                    <button class="btn btn-success w-100" onclick="checkWritingAnswer('${target}')">Check</button>
+                </div>
+            </div>
+         `;
+        // Note: could be improved with individual letter inputs
+    }
+
+    // Sortable generic implementation for dragDrop
+    function renderDragDropGame(container, data) {
+        const correctOrder = data.question.correct_order || [];
+        const shuffled = data.question.options || [...correctOrder].sort(() => Math.random() - 0.5);
+
+        container.innerHTML = `
+            <p class="text-center text-muted mb-3">Arrange in correct order:</p>
+            <div id="sortable-list" class="list-group col-md-6 mx-auto mb-3">
+                ${shuffled.map(item => `<div class="list-group-item list-group-item-action cursor-move">${item}</div>`).join('')}
+            </div>
+            <div class="text-center">
+                <button class="btn btn-success" onclick="checkOrderAnswer()">Check Order</button>
+            </div>
+        `;
+
+        // Simple click-to-select substitution or verify strictly? 
+        // For simplicity: We will just verify the current text order.
+        // A real "Sortable" lib would be better but keeping it vanilla for now.
+        // We can add simple UP/DOWN buttons or just assume the user types it? 
+        // NO, user must interact. Let's make it clicking items moves them to a "Answer" box?
+
+        // Re-implementing with "Click to construct sentence" style
+        container.innerHTML = `
+             <div class="mb-4 p-3 border rounded bg-light text-center min-h-50" id="answer-zone" style="min-height:60px;">
+                <span class="text-muted fst-italic placeholder-text">Click words to build answer...</span>
+             </div>
+             
+             <div class="d-flex flex-wrap justify-content-center gap-2" id="source-zone">
+                ${shuffled.map(item => `<button class="btn btn-outline-dark" onclick="moveToAnswer(this)">${item}</button>`).join('')}
+             </div>
+
+             <div class="text-center mt-4">
+                  <button class="btn btn-warning me-2" onclick="resetOrder()">Reset</button>
+                  <button class="btn btn-success" onclick="checkOrderAnswerFromZone(['${correctOrder.join("','")}'])">Check</button>
+             </div>
+        `;
+    }
+
+    // Attached to window for inline onclicks
+    window.moveToAnswer = function (btn) {
+        const zone = document.getElementById('answer-zone');
+        // Remove placeholder
+        const ph = zone.querySelector('.placeholder-text');
+        if (ph) ph.remove();
+
+        // Move button
+        btn.onclick = () => { // Click to return
+            document.getElementById('source-zone').appendChild(btn);
+            btn.onclick = () => moveToAnswer(btn); // Restore handler
+        };
+        zone.appendChild(btn);
+    };
+
+    window.resetOrder = function () {
+        // Reload current question
+        showQuestion(currentIndex);
+    };
+
+    window.checkOrderAnswerFromZone = function (correctArr) {
+        const zone = document.getElementById('answer-zone');
+        const userItems = Array.from(zone.children).map(btn => btn.innerText.trim());
+
+        // Compare arrays
+        const isCorrect = JSON.stringify(userItems) === JSON.stringify(correctArr);
+
+        // Record Answer
+        recordAnswer(userItems.join(', '), isCorrect, 'dragDrop');
+
+        handleResult(isCorrect, isCorrect ? "Correct Order!" : "Wrong Order!");
+    };
+
+
+    function renderMatchingGame(container, data) {
+        // Pairs: item1 - item2
+        // Show item1s on Left, item2s on Right (shuffled)
+        // Select one from left, one from right -> match
+
+        const pairs = data.pairs || [];
+        const lefts = pairs.map((p, i) => ({ val: p.item1, id: i }));
+        const rights = pairs.map((p, i) => ({ val: p.item2, id: i })).sort(() => Math.random() - 0.5);
+
+        container.innerHTML = `
+            <div class="row">
+                <div class="col-6" id="match-left">
+                    ${lefts.map(l => `<button class="btn btn-outline-primary w-100 mb-2 match-btn" data-side="left" data-id="${l.id}" onclick="selectMatch(this)">${l.val}</button>`).join('')}
+                </div>
+                <div class="col-6" id="match-right">
+                    ${rights.map(r => `<button class="btn btn-outline-info w-100 mb-2 match-btn" data-side="right" data-id="${r.id}" onclick="selectMatch(this)">${r.val}</button>`).join('')}
+                </div>
+            </div>
+            <div class="text-center mt-3" id="match-feedback"></div>
+         `;
+        container.dataset.matchesfound = 0;
+        container.dataset.totalpairs = pairs.length;
+        window.selectedLeft = null;
+        window.selectedRight = null;
+    }
+
+    window.selectMatch = function (btn) {
+        const side = btn.dataset.side;
+        const id = btn.dataset.id;
+
+        // Visual select
+        const col = side === 'left' ? 'match-left' : 'match-right';
+        document.getElementById(col).querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        if (side === 'left') window.selectedLeft = btn;
+        else window.selectedRight = btn;
+
+        // Check if both selected
+        if (window.selectedLeft && window.selectedRight) {
+            const id1 = window.selectedLeft.dataset.id;
+            const id2 = window.selectedRight.dataset.id;
+
+            if (id1 === id2) {
+                // Match!
+                window.selectedLeft.className = "btn btn-success w-100 mb-2 disabled";
+                window.selectedRight.className = "btn btn-success w-100 mb-2 disabled";
+                window.selectedLeft.onclick = null;
+                window.selectedRight.onclick = null;
+
+                // Clear selection
+                window.selectedLeft = null;
+                window.selectedRight = null;
+
+                const container = document.getElementById('game-container').querySelector('.w-100'); // hacky selector
+                let found = parseInt(container.dataset.matchesfound) + 1;
+                container.dataset.matchesfound = found;
+
+                if (found >= parseInt(container.dataset.totalpairs)) {
+                    // Record completion
+                    recordAnswer("Completed all matches", true, 'matchingGame');
+                    handleResult(true, "All matched!");
+                }
+
+            } else {
+                // Miss
+                const feedback = document.getElementById('match-feedback');
+                feedback.innerText = "Try again!";
+                feedback.className = "text-danger";
+                setTimeout(() => {
+                    if (window.selectedLeft) window.selectedLeft.classList.remove('active');
+                    if (window.selectedRight) window.selectedRight.classList.remove('active');
+                    window.selectedLeft = null;
+                    window.selectedRight = null;
+                    feedback.innerText = "";
+                }, 1000);
+            }
+        }
+    }
+
+
+    // --- Core Logic ---
+
+    function checkAnswer(userAnswer, correctAnswer, type) {
+        const isCorrect = userAnswer.toString().trim().toLowerCase() === correctAnswer.toString().trim().toLowerCase();
+
+        // If type is not passed, try to infer or just log
+        // Note: For option/cards/writing, we call checkAnswer directly. 
+        // We should pass 'type' from renderers or look it up.
+        // Simplified: The caller should pass type or we look up current question type
+        const currentType = questions[currentIndex].type;
+        recordAnswer(userAnswer, isCorrect, currentType);
+
+        handleResult(isCorrect);
+    }
+
+    function recordAnswer(userAnswer, isCorrect, type) {
+        userAnswers.push({
+            question: questions[currentIndex].question.text || type,
+            user_answer: userAnswer,
+            correct: isCorrect,
+            q_index: currentIndex
+        });
+    }
+
+    function handleResult(isCorrect, customMsg) {
+        if (isCorrect) {
+            score += 10;
+            correctCount++;
+
+            // Show Success Modal/Alert then next
+            // Using simple alert for now or a custom overlay
+            showFeedback("Correct!", "success");
+        } else {
+            showFeedback(customMsg || "Incorrect", "danger");
+        }
+    }
+
+    function showFeedback(msg, type) {
+        // Create an overlay
+        const overlay = document.createElement('div');
+        overlay.style.position = 'absolute';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(255,255,255,0.9)';
+        overlay.style.display = 'flex';
+        overlay.style.flexDirection = 'column';
+        overlay.style.justifyContent = 'center';
+        overlay.style.alignItems = 'center';
+        overlay.style.zIndex = '100';
+
+        overlay.innerHTML = `
+            <h1 class="text-${type} display-1 mb-4"><i class="bi bi-${type === 'success' ? 'check-circle' : 'x-circle'}"></i></h1>
+            <h2 class="text-${type}">${msg}</h2>
+            <button class="btn btn-primary btn-lg mt-4">Next Question</button>
+        `;
+
+        const cardBody = document.getElementById('game-container');
+        // temporarily relative pos
+        cardBody.style.position = 'relative';
+        cardBody.appendChild(overlay);
+
+        const btn = overlay.querySelector('button');
+        btn.onclick = () => {
+            currentIndex++;
+            showQuestion(currentIndex);
+        };
+        btn.focus();
+    }
+
+    function finishGame() {
+        const container = document.getElementById('game-container');
+
+        // Calculate Stars
+        // 0-30% = 1 star, 30-70% = 2 stars, >70% = 3 stars
+        const percent = (score / maxScore) * 100;
+        let stars = 1;
+        if (percent > 60) stars = 3;
+        else if (percent > 30) stars = 2;
+
+        container.innerHTML = `
+            <div class="text-center">
+                <h2 class="mb-4">Level Complete!</h2>
+                <div class="display-1 text-warning mb-3">
+                    ${'<i class="bi bi-star-fill"></i>'.repeat(stars)}
+                    ${'<i class="bi bi-star"></i>'.repeat(3 - stars)}
+                </div>
+                <h3>Score: ${score} / ${maxScore}</h3>
+                <p class="lead">Great job!</p>
+                <div class="mt-4">
+                     <button onclick="submitResults(${score}, ${stars})" class="btn btn-primary btn-lg px-5">Continue</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function submitResults(finalScore, finalStars) {
+        document.getElementById('input-score').value = finalScore;
+        document.getElementById('input-stars').value = finalStars;
+        document.getElementById('input-answers').value = JSON.stringify(userAnswers);
+        document.getElementById('game-form').submit();
+    }
+
+</script>
+
+<style>
+    .cursor-move {
+        cursor: move;
+    }
+
+    .letter-spacing-large {
+        letter-spacing: 0.2em;
+    }
+
+    .game-option-btn:hover {
+        background-color: #f8f9fa;
+        color: #0d6efd;
+        transition: all 0.2s;
+    }
+</style>
+
+{% endblock %}

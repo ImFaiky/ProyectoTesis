@@ -27,7 +27,7 @@
                     <tr>
                         <td class="fw-bold">{{ discipline.name }}</td>
                         <td>{{ discipline.description|truncatechars:50 }}</td>
-                        <td><span class="badge bg-secondary">{{ discipline.difficulty }}</span></td>
+                        <td><span class="badge bg-secondary">{% if discipline.difficulty == 1 %}Easy{% elif discipline.difficulty == 2 %}Medium{% elif discipline.difficulty == 3 %}Hard{% else %}{{ discipline.difficulty }}{% endif %}</span></td>
                         <td>
                             <span class="d-inline-block rounded-circle"
                                 style="width: 20px; height: 20px; background-color: {{ discipline.color }}; border: 1px solid #dee2e6;"></span>

@@ -11,7 +11,7 @@
 <div class="card shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table id="levelTable" class="table table-hover mb-0" style="width:100%">
                 <thead class="table-light">
                     <tr>
                         <th>Level Number</th>
@@ -38,6 +38,8 @@
                             <div class="btn-group btn-group-sm">
                                 <a href="{% url 'level_edit' level.id %}" class="btn btn-outline-primary"
                                     title="Edit Configuration"><i class="bi bi-gear"></i> Configure</a>
+                                <a href="{% url 'level_delete' level.id %}" class="btn btn-outline-danger"
+                                    title="Delete"><i class="bi bi-trash"></i></a>
                             </div>
                         </td>
                     </tr>
@@ -52,36 +54,26 @@
     </div>
 </div>
 
-<!-- Pagination -->
-{% if levels.has_other_pages %}
-<nav class="mt-4">
-    <ul class="pagination justify-content-center">
-        {% if levels.has_previous %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ levels.previous_page_number }}">Previous</a>
-        </li>
-        {% else %}
-        <li class="page-item disabled">
-            <span class="page-link">Previous</span>
-        </li>
-        {% endif %}
+{% endblock %}
 
-        {% for num in levels.paginator.page_range %}
-        <li class="page-item {% if levels.number == num %}active{% endif %}">
-            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-        </li>
-        {% endfor %}
-
-        {% if levels.has_next %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ levels.next_page_number }}">Next</a>
-        </li>
-        {% else %}
-        <li class="page-item disabled">
-            <span class="page-link">Next</span>
-        </li>
-        {% endif %}
-    </ul>
-</nav>
-{% endif %}
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#levelTable').DataTable({
+        pageLength: 10,
+        language: {
+            search: "Search:",
+            lengthMenu: "Show _MENU_ entries",
+            info: "Showing _START_ to _END_ of _TOTAL_ levels",
+            infoEmpty: "No levels available",
+            infoFiltered: "(filtered from _MAX_ total)",
+            zeroRecords: "No matching levels found",
+            paginate: { first: "First", last: "Last", next: "Next", previous: "Previous" }
+        },
+        columnDefs: [
+            { orderable: false, targets: -1 }
+        ]
+    });
+});
+</script>
 {% endblock %}

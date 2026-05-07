@@ -53,7 +53,6 @@ class DisciplineListView(LoginRequiredMixin, ManagementRequiredMixin, ListView):
     model = Discipline
     template_name = 'core/discipline_list.html'
     context_object_name = 'disciplines'
-    paginate_by = 10
 
     def get_queryset(self):
         if is_admin(self.request.user):
@@ -102,13 +101,8 @@ def level_list(request, discipline_id):
         discipline = get_object_or_404(Discipline, id=discipline_id)
     else:
         discipline = get_object_or_404(Discipline, id=discipline_id, created_by=request.user)
-    levels_qs = discipline.levels.all().order_by('number')
-    
-    paginator = Paginator(levels_qs, 10) 
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    return render(request, 'core/level_list.html', {'discipline': discipline, 'levels': page_obj})
+    levels = discipline.levels.all().order_by('number')
+    return render(request, 'core/level_list.html', {'discipline': discipline, 'levels': levels})
 
 class LevelCreateView(LoginRequiredMixin, ManagementRequiredMixin, CreateView):
     model = Level
@@ -185,12 +179,12 @@ class LevelUpdateView(LoginRequiredMixin, ManagementRequiredMixin, UpdateView):
 
 @login_required
 @user_passes_test(is_management_user)
-def discipline_delete(request, discipline_id):
+def discipline_delete(request, pk):
     if is_admin(request.user):
-        discipline = get_object_or_404(Discipline, id=discipline_id)
+        discipline = get_object_or_404(Discipline, pk=pk)
     else:
-        discipline = get_object_or_404(Discipline, id=discipline_id, created_by=request.user)
-    
+        discipline = get_object_or_404(Discipline, pk=pk, created_by=request.user)
+
     if request.method == 'POST':
         try:
             discipline_name = discipline.name
@@ -198,31 +192,54 @@ def discipline_delete(request, discipline_id):
             messages.success(request, f'Discipline "{discipline_name}" deleted successfully.')
         except Exception as e:
             messages.error(request, f'Error deleting discipline: {e}')
-        
         return redirect('discipline_list')
-    
-    return render(request, 'core/discipline_confirm_delete.html', {'discipline': discipline})
+
+    # Cascade info
+    level_count = discipline.levels.count()
+    progress_count = UserLevelProgress.objects.filter(level__discipline=discipline).count()
+    attempt_count = LevelAttempt.objects.filter(level__discipline=discipline).count()
+    image_count = QuestionImage.objects.filter(level__discipline=discipline).count()
+
+    return render(request, 'core/discipline_confirm_delete.html', {
+        'discipline': discipline,
+        'level_count': level_count,
+        'progress_count': progress_count,
+        'attempt_count': attempt_count,
+        'image_count': image_count,
+    })
 
 @login_required
 @user_passes_test(is_management_user)
-def level_delete(request, level_id):
+def level_delete(request, pk):
     if is_admin(request.user):
-        level = get_object_or_404(Level, id=level_id)
+        level = get_object_or_404(Level, pk=pk)
     else:
-        level = get_object_or_404(Level, id=level_id, discipline__created_by=request.user)
+        level = get_object_or_404(Level, pk=pk, discipline__created_by=request.user)
     discipline_id = level.discipline.id
-    
+
     if request.method == 'POST':
         try:
-            level_name = level.name
+            level_str = str(level)
             level.delete()
-            messages.success(request, f'Level "{level_name}" deleted successfully.')
+            messages.success(request, f'Level "{level_str}" deleted successfully.')
         except Exception as e:
             messages.error(request, f'Error deleting level: {e}')
-        
         return redirect('level_list', discipline_id=discipline_id)
-    
-    return render(request, 'core/level_confirm_delete.html', {'level': level})
+
+    # Cascade info
+    progress_count = UserLevelProgress.objects.filter(level=level).count()
+    attempt_count = LevelAttempt.objects.filter(level=level).count()
+    image_count = QuestionImage.objects.filter(level=level).count()
+    student_count = level.assigned_students.count()
+
+    return render(request, 'core/level_confirm_delete.html', {
+        'level': level,
+        'discipline': level.discipline,
+        'progress_count': progress_count,
+        'attempt_count': attempt_count,
+        'image_count': image_count,
+        'student_count': student_count,
+    })
 
 
 # --- Existing Views ---
@@ -395,14 +412,10 @@ def play_level_simulation(request, level_id):
 @user_passes_test(is_management_user)
 def student_list(request):
     if is_admin(request.user):
-        students_qs = User.objects.filter(is_superuser=False, is_staff=False).order_by('username')
+        students = User.objects.filter(is_superuser=False, is_staff=False).order_by('username')
     else:
-        students_qs = get_teacher_students(request.user).order_by('username')
-    paginator = Paginator(students_qs, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    return render(request, 'core/student_list.html', {'students': page_obj})
+        students = get_teacher_students(request.user).order_by('username')
+    return render(request, 'core/student_list.html', {'students': students})
 
 @login_required
 @user_passes_test(is_management_user)
@@ -446,10 +459,10 @@ def student_edit(request, pk):
     return render(request, 'core/student_form.html', {'student': student})
 
 @login_required
-@user_passes_test(is_management_user)
+@user_passes_test(is_admin)
 def student_delete(request, pk):
     student = get_object_or_404(User, pk=pk, is_superuser=False, is_staff=False)
-    
+
     if request.method == 'POST':
         try:
             student_name = student.username
@@ -457,10 +470,21 @@ def student_delete(request, pk):
             messages.success(request, f'Student "{student_name}" deleted successfully.')
         except Exception as e:
             messages.error(request, f'Error deleting student: {e}')
-        
         return redirect('student_list')
-    
-    return render(request, 'core/student_confirm_delete.html', {'student': student})
+
+    # Cascade info
+    progress_count = UserLevelProgress.objects.filter(user=student).count()
+    attempt_count = LevelAttempt.objects.filter(user=student).count()
+    enrollment_count = ClassroomEnrollment.objects.filter(student=student).count()
+    conversation_count = AIConversation.objects.filter(user=student).count()
+
+    return render(request, 'core/student_confirm_delete.html', {
+        'student': student,
+        'progress_count': progress_count,
+        'attempt_count': attempt_count,
+        'enrollment_count': enrollment_count,
+        'conversation_count': conversation_count,
+    })
 
 
 # ============================================
@@ -535,12 +559,23 @@ def teacher_delete(request, pk):
     teacher = get_object_or_404(User, pk=pk, is_staff=True, is_superuser=False)
 
     if request.method == 'POST':
-        name = teacher.username
-        teacher.delete()
-        messages.success(request, f'Teacher "{name}" deleted successfully.')
+        try:
+            name = teacher.username
+            teacher.delete()
+            messages.success(request, f'Teacher "{name}" deleted successfully.')
+        except Exception as e:
+            messages.error(request, f'Error deleting teacher: {e}')
         return redirect('teacher_list')
 
-    return render(request, 'core/teacher_confirm_delete.html', {'teacher': teacher})
+    # Cascade info
+    classroom_count = Classroom.objects.filter(teacher=teacher).count()
+    enrollment_count = ClassroomEnrollment.objects.filter(classroom__teacher=teacher).count()
+
+    return render(request, 'core/teacher_confirm_delete.html', {
+        'teacher': teacher,
+        'classroom_count': classroom_count,
+        'enrollment_count': enrollment_count,
+    })
 
 
 @login_required
@@ -1082,21 +1117,27 @@ def classroom_edit(request, pk):
 
 
 @login_required
-@user_passes_test(is_management_user)
+@user_passes_test(is_admin)
 def classroom_delete(request, pk):
-    """Delete a classroom."""
+    """Delete a classroom (admin only)."""
     classroom = get_object_or_404(Classroom, pk=pk)
-    if not is_admin(request.user) and classroom.teacher != request.user:
-        messages.error(request, 'You do not have permission to delete this classroom.')
-        return redirect('classroom_list')
 
     if request.method == 'POST':
-        name = classroom.name
-        classroom.delete()
-        messages.success(request, f'Classroom "{name}" deleted successfully.')
+        try:
+            name = classroom.name
+            classroom.delete()
+            messages.success(request, f'Classroom "{name}" deleted successfully.')
+        except Exception as e:
+            messages.error(request, f'Error deleting classroom: {e}')
         return redirect('classroom_list')
 
-    return render(request, 'core/classroom_confirm_delete.html', {'classroom': classroom})
+    # Cascade info
+    enrollment_count = classroom.enrollments.count()
+
+    return render(request, 'core/classroom_confirm_delete.html', {
+        'classroom': classroom,
+        'enrollment_count': enrollment_count,
+    })
 
 
 @login_required

@@ -11,7 +11,7 @@
 <div class="card shadow-sm border-0" style="border-radius: 16px;">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table id="teacherTable" class="table table-hover mb-0" style="width:100%">
                 <thead class="table-light">
                     <tr>
                         <th>Username</th>
@@ -57,4 +57,26 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#teacherTable').DataTable({
+        pageLength: 10,
+        language: {
+            search: "Search:",
+            lengthMenu: "Show _MENU_ entries",
+            info: "Showing _START_ to _END_ of _TOTAL_ teachers",
+            infoEmpty: "No teachers available",
+            infoFiltered: "(filtered from _MAX_ total)",
+            zeroRecords: "No matching teachers found",
+            paginate: { first: "First", last: "Last", next: "Next", previous: "Previous" }
+        },
+        columnDefs: [
+            { orderable: false, targets: -1 }
+        ]
+    });
+});
+</script>
 {% endblock %}

@@ -2,15 +2,29 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-7">
         <div class="card border-danger shadow-sm" style="border-radius: 16px;">
             <div class="card-body p-4 text-center">
                 <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
                 <h4 class="mt-3">Delete teacher "{{ teacher.username }}"?</h4>
-                <p class="text-muted">
-                    Their classrooms and student enrollments will also be deleted.
-                    This action cannot be undone.
+                <p class="text-muted mb-2">
+                    This action is <strong>permanent</strong> and cannot be undone.
                 </p>
+
+                {% if classroom_count or enrollment_count %}
+                <div class="alert alert-warning text-start mt-3">
+                    <strong><i class="bi bi-info-circle"></i> The following related data will also be deleted:</strong>
+                    <ul class="mb-0 mt-2">
+                        {% if classroom_count %}
+                        <li><strong>{{ classroom_count }}</strong> classroom{{ classroom_count|pluralize }}</li>
+                        {% endif %}
+                        {% if enrollment_count %}
+                        <li><strong>{{ enrollment_count }}</strong> student enrollment{{ enrollment_count|pluralize }}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+
                 <form method="post" class="d-flex gap-2 justify-content-center mt-4">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-danger">

@@ -59,16 +59,16 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label fw-bold"><i class="bi bi-palette me-1"></i>Temática del Nivel</label>
+                                    <label class="form-label fw-bold"><i class="bi bi-palette me-1"></i>Level Theme</label>
                                     {{ form.theme }}
-                                    <div class="form-text text-muted">Selecciona una temática visual para el gameplay.</div>
+                                    <div class="form-text text-muted">Select a visual theme for gameplay.</div>
                                 </div>
                             </div>
                             <div class="col-md-6" id="timeLimitGroup" style="display:none;">
                                 <div class="mb-3">
-                                    <label class="form-label fw-bold"><i class="bi bi-stopwatch me-1"></i>Tiempo Límite (segundos)</label>
+                                    <label class="form-label fw-bold"><i class="bi bi-stopwatch me-1"></i>Time Limit (seconds)</label>
                                     {{ form.time_limit_seconds }}
-                                    <div class="form-text text-muted">Tiempo que tiene la tortuga para llegar a la meta (ej. 300 = 5 min).</div>
+                                    <div class="form-text text-muted">Time the turtle has to reach the goal (e.g. 300 = 5 min).</div>
                                 </div>
                             </div>
                         </div>
@@ -120,6 +120,49 @@
                             </div>
                         </div>
 
+                        <!-- AI Question Generator -->
+                        <div class="card p-3 mt-3 border-2 shadow-sm" style="border-color: #764ba2 !important; background: linear-gradient(135deg, rgba(102,126,234,0.05), rgba(118,75,162,0.05));">
+                            <label class="fw-bold mb-3" style="color: #764ba2;">
+                                <i class="bi bi-robot"></i> Generate Questions with AI
+                            </label>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <input type="text" id="aiTopic" class="form-control form-control-sm"
+                                        placeholder="Topic (e.g.: fractions, multiplication tables...)">
+                                </div>
+                                <div class="col-md-2">
+                                    <select id="aiQuestionType" class="form-select form-select-sm">
+                                        <option value="option">Multiple Choice</option>
+                                        <option value="writing">Writing</option>
+                                        <option value="voice">Voice</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <select id="aiDifficulty" class="form-select form-select-sm">
+                                        <option value="easy">Easy</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="hard">Hard</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <select id="aiCount" class="form-select form-select-sm">
+                                        <option value="3">3 questions</option>
+                                        <option value="5">5 questions</option>
+                                        <option value="8">8 questions</option>
+                                        <option value="10">10 questions</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-sm w-100 text-white" id="aiGenerateBtn"
+                                        style="background: linear-gradient(135deg, #667eea, #764ba2);"
+                                        onclick="generateWithAI()">
+                                        <i class="bi bi-stars"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="aiStatus" class="mt-2 small" style="display:none;"></div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -127,9 +170,9 @@
                 <div class="card shadow mb-4">
                     <div class="card-header py-3 d-flex justify-content-between align-items-center bg-white">
                         <h6 class="m-0 font-weight-bold text-info">
-                            <i class="bi bi-people-fill me-2"></i>Asignar Estudiantes
+                            <i class="bi bi-people-fill me-2"></i>Assign Students
                         </h6>
-                        <span class="badge bg-info text-white" id="assignedCount">0 asignados</span>
+                        <span class="badge bg-info text-white" id="assignedCount">0 assigned</span>
                     </div>
                     <div class="card-body">
                         <div class="row">
@@ -138,21 +181,21 @@
                                 <div class="card border-secondary h-100">
                                     <div class="card-header bg-light py-2">
                                         <h6 class="mb-0 text-secondary fw-bold">
-                                            <i class="bi bi-person-plus me-1"></i> Estudiantes Disponibles
+                                            <i class="bi bi-person-plus me-1"></i> Available Students
                                         </h6>
                                     </div>
                                     <div class="card-body p-0">
                                         <div class="p-2">
                                             <input type="text" id="studentSearch" class="form-control form-control-sm"
-                                                placeholder="Buscar por nombre o email...">
+                                                placeholder="Search by name or email...">
                                         </div>
                                         <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
                                             <table class="table table-hover table-sm mb-0" id="availableStudentsTable">
                                                 <thead class="table-light sticky-top">
                                                     <tr>
-                                                        <th>Usuario</th>
+                                                        <th>Username</th>
                                                         <th>Email</th>
-                                                        <th class="text-center" style="width: 90px;">Acción</th>
+                                                        <th class="text-center" style="width: 90px;">Action</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="availableStudentsBody">
@@ -169,7 +212,7 @@
                                                         <td class="text-center">
                                                             <button type="button" class="btn btn-sm btn-outline-success py-0 px-2"
                                                                 onclick="assignStudent({{ student.id }}, '{{ student.username|escapejs }}', '{{ student.email|escapejs }}')">
-                                                                <i class="bi bi-plus-lg"></i> Agregar
+                                                                <i class="bi bi-plus-lg"></i> Add
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -178,7 +221,7 @@
                                             </table>
                                         </div>
                                         <div class="text-center text-muted small p-2" id="noAvailableMsg" style="display:none;">
-                                            No hay estudiantes disponibles
+                                            No available students
                                         </div>
                                     </div>
                                 </div>
@@ -189,7 +232,7 @@
                                 <div class="card border-info h-100">
                                     <div class="card-header bg-info bg-opacity-10 py-2">
                                         <h6 class="mb-0 text-info fw-bold">
-                                            <i class="bi bi-person-check me-1"></i> Estudiantes Asignados
+                                            <i class="bi bi-person-check me-1"></i> Assigned Students
                                         </h6>
                                     </div>
                                     <div class="card-body p-0">
@@ -197,9 +240,9 @@
                                             <table class="table table-hover table-sm mb-0" id="assignedStudentsTable">
                                                 <thead class="table-light sticky-top">
                                                     <tr>
-                                                        <th>Usuario</th>
+                                                        <th>Username</th>
                                                         <th>Email</th>
-                                                        <th class="text-center" style="width: 90px;">Acción</th>
+                                                        <th class="text-center" style="width: 90px;">Action</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="assignedStudentsBody">
@@ -214,7 +257,7 @@
                                                         <td class="text-center">
                                                             <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2"
                                                                 onclick="unassignStudent({{ student.id }})">
-                                                                <i class="bi bi-x-lg"></i> Quitar
+                                                                <i class="bi bi-x-lg"></i> Remove
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -226,7 +269,7 @@
                                         <div class="text-center text-muted small p-3" id="noAssignedMsg"
                                             {% if assigned_student_ids %}style="display:none;"{% endif %}>
                                             <i class="bi bi-info-circle me-1"></i>
-                                            No se han asignado estudiantes aún
+                                            No students assigned yet
                                         </div>
                                     </div>
                                 </div>
@@ -242,7 +285,7 @@
                     </div>
                     <div class="card-footer bg-white">
                         <button type="submit" class="btn btn-success btn-lg w-100 shadow-sm"><i class="bi bi-save"></i>
-                            Guardar Nivel</button>
+                            Save Level</button>
                     </div>
                 </div>
 
@@ -595,7 +638,7 @@
         div.className = 'mb-3';
         var previewHtml = currentImage ? '<img src="' + currentImage + '" style="max-width:200px;max-height:150px;border-radius:8px;border:2px solid #e5e7eb;" />' : '';
         var removeBtn = currentImage ? '<button type="button" class="btn btn-sm btn-outline-danger" onclick="removeQuestionImage(' + qIndex + ')"><i class="bi bi-trash"></i></button>' : '';
-        div.innerHTML = '<label class="form-label"><i class="bi bi-image me-1"></i>Imagen de la pregunta <small class="text-muted">(opcional)</small></label>' +
+        div.innerHTML = '<label class="form-label"><i class="bi bi-image me-1"></i>Question image <small class="text-muted">(optional)</small></label>' +
             '<div id="img-preview-' + qIndex + '" style="margin-bottom:8px;">' + previewHtml + '</div>' +
             '<div class="input-group"><input type="file" class="form-control form-control-sm" accept="image/*" id="img-input-' + qIndex + '" onchange="uploadQuestionImage(' + qIndex + ', this)">' + removeBtn + '</div>' +
             '<div id="img-status-' + qIndex + '" class="small mt-1"></div>';
@@ -606,7 +649,7 @@
         var file = inputEl.files[0];
         if (!file) return;
         var statusEl = document.getElementById('img-status-' + qIndex);
-        statusEl.innerHTML = '<span class="text-primary"><i class="bi bi-arrow-repeat spin-icon"></i> Subiendo imagen...</span>';
+        statusEl.innerHTML = '<span class="text-primary"><i class="bi bi-arrow-repeat spin-icon"></i> Uploading image...</span>';
         var formData = new FormData();
         formData.append('image', file);
         fetch('{% url "upload_question_image" %}', {
@@ -622,12 +665,12 @@
             }
             gameData.questions[qIndex].question.image = data.url;
             updateJson();
-            statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Imagen subida correctamente</span>';
+            statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Image uploaded successfully</span>';
             var preview = document.getElementById('img-preview-' + qIndex);
             preview.innerHTML = '<img src="' + data.url + '" style="max-width:200px;max-height:150px;border-radius:8px;border:2px solid #e5e7eb;" />';
         })
         .catch(function(err) {
-            statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Error al subir imagen</span>';
+            statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Error uploading image</span>';
             console.error(err);
         });
     };
@@ -662,7 +705,7 @@
         tr.setAttribute('data-student-id', id);
         tr.innerHTML = '<td><i class="bi bi-person-check-fill text-info me-1"></i> ' + username + '</td>' +
             '<td class="text-muted small">' + (email || '-') + '</td>' +
-            '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="unassignStudent(' + id + ')"><i class="bi bi-x-lg"></i> Quitar</button></td>';
+            '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="unassignStudent(' + id + ')"><i class="bi bi-x-lg"></i> Remove</button></td>';
         assignedBody.appendChild(tr);
         var container = document.getElementById('assignedInputsContainer');
         var input = document.createElement('input');
@@ -687,7 +730,7 @@
     function updateStudentCounts() {
         var assignedRows = document.querySelectorAll('#assignedStudentsBody tr');
         var count = assignedRows.length;
-        document.getElementById('assignedCount').textContent = count + ' asignados';
+        document.getElementById('assignedCount').textContent = count + ' assigned';
         document.getElementById('noAssignedMsg').style.display = count === 0 ? '' : 'none';
         var visibleAvailable = document.querySelectorAll('#availableStudentsBody tr.student-available-row:not(.d-none):not(.search-hidden)');
         document.getElementById('noAvailableMsg').style.display = visibleAvailable.length === 0 ? '' : 'none';
@@ -713,6 +756,98 @@
         var theme = document.getElementById('id_theme').value;
         var group = document.getElementById('timeLimitGroup');
         group.style.display = (theme !== 'none') ? '' : 'none';
+    }
+
+    async function generateWithAI() {
+        var topic = document.getElementById('aiTopic').value.trim();
+        if (!topic) {
+            alert('Enter a topic to generate questions.');
+            return;
+        }
+
+        var qType = document.getElementById('aiQuestionType').value;
+        var difficulty = document.getElementById('aiDifficulty').value;
+        var count = document.getElementById('aiCount').value;
+        var btn = document.getElementById('aiGenerateBtn');
+        var statusEl = document.getElementById('aiStatus');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat spin-icon"></i> Generating...';
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = '<span class="text-primary"><i class="bi bi-robot"></i> AI is generating questions...</span>';
+
+        try {
+            var response = await fetch('{% url "ai_generate_questions" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    topic: topic,
+                    question_type: qType,
+                    count: parseInt(count),
+                    difficulty: difficulty
+                })
+            });
+
+            var data = await response.json();
+
+            if (response.ok && data.questions) {
+                var added = 0;
+                data.questions.forEach(function(aiQ) {
+                    var newQ = convertAIQuestion(aiQ, qType);
+                    if (newQ) {
+                        gameData.questions.push(newQ);
+                        added++;
+                    }
+                });
+                initEditor();
+                statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> ' + added + ' questions generated and added!</span>';
+            } else {
+                statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> ' + (data.error || 'Error generating.') + '</span>';
+            }
+        } catch (e) {
+            statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Connection error.</span>';
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-stars"></i> Generate';
+        setTimeout(function() { statusEl.style.display = 'none'; }, 8000);
+    }
+
+    function convertAIQuestion(aiQ, qType) {
+        if (qType === 'option') {
+            var opts = aiQ.options || ['', '', '', ''];
+            var correctIdx = parseInt(aiQ.correct);
+            var correctAnswer = (correctIdx >= 0 && correctIdx < opts.length) ? opts[correctIdx] : opts[0];
+            return {
+                type: 'option',
+                question: {
+                    text: aiQ.text || '',
+                    image: '',
+                    options: opts.slice(0, 4),
+                    correct_answer: correctAnswer
+                }
+            };
+        } else if (qType === 'writing') {
+            return {
+                type: 'writing',
+                question: {
+                    text: aiQ.text || '',
+                    correct_answer: aiQ.correct_answer || ''
+                }
+            };
+        } else if (qType === 'voice') {
+            return {
+                type: 'voice',
+                question: {
+                    text: aiQ.text || '',
+                    correct_answer: aiQ.correct_answer || ''
+                }
+            };
+        }
+        return null;
     }
 
     document.addEventListener('DOMContentLoaded', function() {

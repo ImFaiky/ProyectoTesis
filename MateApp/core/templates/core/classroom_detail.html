@@ -1,0 +1,101 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-building"></i> {{ classroom.name }}</h2>
+        <p class="text-muted mb-0">{{ classroom.description }}</p>
+    </div>
+    <a href="{% url 'classroom_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+</div>
+
+<!-- Classroom Info -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3" style="border-radius: 12px;">
+            <div class="fw-bold fs-3 text-primary">{{ classroom.student_count }}</div>
+            <small class="text-muted">Students</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3" style="border-radius: 12px;">
+            <div class="fw-bold fs-4" style="font-family: monospace;">{{ classroom.code }}</div>
+            <small class="text-muted">Code</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3" style="border-radius: 12px;">
+            <div class="fw-bold fs-6">{{ classroom.access_password }}</div>
+            <small class="text-muted">Password</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3" style="border-radius: 12px;">
+            {% if classroom.is_active %}
+                <span class="badge bg-success fs-6">Active</span>
+            {% else %}
+                <span class="badge bg-secondary fs-6">Inactive</span>
+            {% endif %}
+            <small class="text-muted d-block mt-1">Status</small>
+        </div>
+    </div>
+</div>
+
+<!-- Students Table -->
+<div class="card border-0 shadow-sm" style="border-radius: 16px;">
+    <div class="card-header bg-white border-0 pt-3 px-4">
+        <h5 class="mb-0"><i class="bi bi-people"></i> Enrolled Students</h5>
+    </div>
+    <div class="card-body px-4">
+        {% if enrollments %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Username</th>
+                        <th>Points</th>
+                        <th>Enrolled</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for enrollment in enrollments %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ enrollment.student.first_name }} {{ enrollment.student.last_name }}</td>
+                        <td><code>{{ enrollment.student.username }}</code></td>
+                        <td><span class="badge bg-warning text-dark">{{ enrollment.student.total_points }} pts</span></td>
+                        <td><small class="text-muted">{{ enrollment.enrolled_at|date:"d/m/Y H:i" }}</small></td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'student_profile' enrollment.student.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-person"></i>
+                                </a>
+                                <form method="post" action="{% url 'classroom_remove_student' classroom.pk enrollment.student.pk %}"
+                                      onsubmit="return confirm('Remove {{ enrollment.student.username }} from this classroom?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-person-x"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="bi bi-people" style="font-size: 3rem; color: #ccc;"></i>
+            <p class="text-muted mt-2">No students enrolled yet.</p>
+            <p class="text-muted">Share the code <strong>{{ classroom.code }}</strong> and password with your students.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-building"></i> My Classrooms</h2>
+    <a href="{% url 'join_classroom' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Join a Classroom
+    </a>
+</div>
+
+{% if enrollments %}
+<div class="row g-4">
+    {% for enrollment in enrollments %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm border-0" style="border-radius: 16px;">
+            <div class="card-body">
+                <h5 class="fw-bold mb-2">{{ enrollment.classroom.name }}</h5>
+                <p class="text-muted small mb-1">
+                    <i class="bi bi-person-badge"></i> Teacher: {{ enrollment.classroom.teacher.first_name|default:enrollment.classroom.teacher.username }}
+                </p>
+                {% if enrollment.classroom.description %}
+                    <p class="text-muted small mb-2">{{ enrollment.classroom.description|truncatewords:15 }}</p>
+                {% endif %}
+                <p class="text-muted small mb-0">
+                    <i class="bi bi-calendar-check"></i> Enrolled: {{ enrollment.enrolled_at|date:"d/m/Y" }}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="bi bi-building" style="font-size: 4rem; color: #ccc;"></i>
+    <h4 class="mt-3 text-muted">You are not enrolled in any classroom</h4>
+    <p class="text-muted">Ask your teacher for the code and password to join.</p>
+    <a href="{% url 'join_classroom' %}" class="btn btn-primary mt-2">
+        <i class="bi bi-search"></i> Find a Classroom
+    </a>
+</div>
+{% endif %}
+{% endblock %}

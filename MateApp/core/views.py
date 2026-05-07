@@ -9,9 +9,11 @@ from django.db import models
 from django.http import JsonResponse, HttpResponse
 import json
 import csv
+import string
+import random
 from datetime import timedelta
 from django.utils import timezone
-from .models import Discipline, Level, UserLevelProgress, LevelAttempt, QuestionImage
+from .models import Discipline, Level, UserLevelProgress, LevelAttempt, QuestionImage, AIConversation, Classroom, ClassroomEnrollment
 from .services import save_level_progress
 from .forms import DisciplineForm, LevelForm
 
@@ -30,6 +32,14 @@ def is_management_user(user):
 def is_student(user):
     return not user.is_staff and user.is_authenticated
 
+
+def get_teacher_students(teacher):
+    """Returns queryset of students enrolled in a teacher's classrooms."""
+    student_ids = ClassroomEnrollment.objects.filter(
+        classroom__teacher=teacher
+    ).values_list('student_id', flat=True)
+    return User.objects.filter(id__in=student_ids)
+
 class AdminRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return is_admin(self.request.user)
@@ -45,6 +55,11 @@ class DisciplineListView(LoginRequiredMixin, ManagementRequiredMixin, ListView):
     context_object_name = 'disciplines'
     paginate_by = 10
 
+    def get_queryset(self):
+        if is_admin(self.request.user):
+            return Discipline.objects.all().order_by('name')
+        return Discipline.objects.filter(created_by=self.request.user).order_by('name')
+
 class DisciplineCreateView(LoginRequiredMixin, ManagementRequiredMixin, CreateView):
     model = Discipline
     form_class = DisciplineForm
@@ -52,6 +67,7 @@ class DisciplineCreateView(LoginRequiredMixin, ManagementRequiredMixin, CreateVi
     success_url = reverse_lazy('discipline_list')
     
     def form_valid(self, form):
+        form.instance.created_by = self.request.user
         messages.success(self.request, 'Discipline created successfully.')
         return super().form_valid(form)
     
@@ -64,6 +80,11 @@ class DisciplineUpdateView(LoginRequiredMixin, ManagementRequiredMixin, UpdateVi
     form_class = DisciplineForm
     template_name = 'core/discipline_form.html'
     success_url = reverse_lazy('discipline_list')
+
+    def get_queryset(self):
+        if is_admin(self.request.user):
+            return Discipline.objects.all()
+        return Discipline.objects.filter(created_by=self.request.user)
     
     def form_valid(self, form):
         messages.success(self.request, 'Discipline updated successfully.')
@@ -77,7 +98,10 @@ class DisciplineUpdateView(LoginRequiredMixin, ManagementRequiredMixin, UpdateVi
 @login_required
 @user_passes_test(is_management_user)
 def level_list(request, discipline_id):
-    discipline = get_object_or_404(Discipline, id=discipline_id)
+    if is_admin(request.user):
+        discipline = get_object_or_404(Discipline, id=discipline_id)
+    else:
+        discipline = get_object_or_404(Discipline, id=discipline_id, created_by=request.user)
     levels_qs = discipline.levels.all().order_by('number')
     
     paginator = Paginator(levels_qs, 10) 
@@ -93,7 +117,10 @@ class LevelCreateView(LoginRequiredMixin, ManagementRequiredMixin, CreateView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs['discipline'] = get_object_or_404(Discipline, id=self.kwargs.get('discipline_id'))
+        if is_admin(self.request.user):
+            kwargs['discipline'] = get_object_or_404(Discipline, id=self.kwargs.get('discipline_id'))
+        else:
+            kwargs['discipline'] = get_object_or_404(Discipline, id=self.kwargs.get('discipline_id'), created_by=self.request.user)
         return kwargs
 
     def form_valid(self, form):
@@ -113,8 +140,12 @@ class LevelCreateView(LoginRequiredMixin, ManagementRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['discipline'] = get_object_or_404(Discipline, id=self.kwargs.get('discipline_id'))
-        context['all_students'] = User.objects.filter(is_superuser=False, is_staff=False).order_by('username')
+        if is_admin(self.request.user):
+            context['discipline'] = get_object_or_404(Discipline, id=self.kwargs.get('discipline_id'))
+            context['all_students'] = User.objects.filter(is_superuser=False, is_staff=False).order_by('username')
+        else:
+            context['discipline'] = get_object_or_404(Discipline, id=self.kwargs.get('discipline_id'), created_by=self.request.user)
+            context['all_students'] = get_teacher_students(self.request.user).order_by('username')
         context['assigned_student_ids'] = []
         return context
 
@@ -137,17 +168,28 @@ class LevelUpdateView(LoginRequiredMixin, ManagementRequiredMixin, UpdateView):
         messages.error(self.request, 'Error updating level. Please check the form.')
         return super().form_invalid(form)
 
+    def get_queryset(self):
+        if is_admin(self.request.user):
+            return Level.objects.all()
+        return Level.objects.filter(discipline__created_by=self.request.user)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['discipline'] = self.object.discipline
-        context['all_students'] = User.objects.filter(is_superuser=False, is_staff=False).order_by('username')
+        if is_admin(self.request.user):
+            context['all_students'] = User.objects.filter(is_superuser=False, is_staff=False).order_by('username')
+        else:
+            context['all_students'] = get_teacher_students(self.request.user).order_by('username')
         context['assigned_student_ids'] = list(self.object.assigned_students.values_list('id', flat=True))
         return context
 
 @login_required
 @user_passes_test(is_management_user)
 def discipline_delete(request, discipline_id):
-    discipline = get_object_or_404(Discipline, id=discipline_id)
+    if is_admin(request.user):
+        discipline = get_object_or_404(Discipline, id=discipline_id)
+    else:
+        discipline = get_object_or_404(Discipline, id=discipline_id, created_by=request.user)
     
     if request.method == 'POST':
         try:
@@ -164,7 +206,10 @@ def discipline_delete(request, discipline_id):
 @login_required
 @user_passes_test(is_management_user)
 def level_delete(request, level_id):
-    level = get_object_or_404(Level, id=level_id)
+    if is_admin(request.user):
+        level = get_object_or_404(Level, id=level_id)
+    else:
+        level = get_object_or_404(Level, id=level_id, discipline__created_by=request.user)
     discipline_id = level.discipline.id
     
     if request.method == 'POST':
@@ -184,15 +229,21 @@ def level_delete(request, level_id):
 
 @login_required
 def dashboard(request):
-    if is_admin(request.user):
-        # Admin Dashboard Logic
-        student_count = User.objects.filter(is_superuser=False, is_staff=False).count()
-        discipline_count = Discipline.objects.count()
-        level_count = Level.objects.count()
-        recent_progress = UserLevelProgress.objects.select_related('user', 'level').order_by('-completed_at')[:10]
-        
-        # Student Report Data
-        students = User.objects.filter(is_superuser=False, is_staff=False).order_by('-total_points')
+    if is_management_user(request.user):
+        # Admin sees ALL students; Teacher sees only THEIR enrolled students
+        if is_admin(request.user):
+            students = User.objects.filter(is_superuser=False, is_staff=False).order_by('-total_points')
+        else:
+            students = get_teacher_students(request.user).order_by('-total_points')
+
+        student_count = students.count()
+        if is_admin(request.user):
+            discipline_count = Discipline.objects.count()
+            level_count = Level.objects.count()
+        else:
+            discipline_count = Discipline.objects.filter(created_by=request.user).count()
+            level_count = Level.objects.filter(discipline__created_by=request.user).count()
+        recent_progress = UserLevelProgress.objects.filter(user__in=students).select_related('user', 'level').order_by('-completed_at')[:10]
         
         # Student Progress Summary
         student_progress_data = []
@@ -210,10 +261,11 @@ def dashboard(request):
                 'last_activity': progress_records.order_by('-completed_at').first().completed_at if progress_records.exists() else None
             })
         
-        # Discipline Performance Summary
+        # Discipline Performance Summary (filtered by teacher's students and disciplines)
         discipline_performance = []
-        for discipline in Discipline.objects.all():
-            total_progress = UserLevelProgress.objects.filter(level__discipline=discipline)
+        disc_qs = Discipline.objects.all() if is_admin(request.user) else Discipline.objects.filter(created_by=request.user)
+        for discipline in disc_qs:
+            total_progress = UserLevelProgress.objects.filter(level__discipline=discipline, user__in=students)
             discipline_performance.append({
                 'discipline': discipline,
                 'total_attempts': total_progress.count(),
@@ -222,11 +274,14 @@ def dashboard(request):
                 'avg_score': total_progress.aggregate(models.Avg('score'))['score__avg'] or 0
             })
         
-        # Overall Avg Score
-        overall_avg_score = UserLevelProgress.objects.aggregate(models.Avg('score'))['score__avg'] or 0
+        # Overall Avg Score (filtered)
+        overall_avg_score = UserLevelProgress.objects.filter(user__in=students).aggregate(models.Avg('score'))['score__avg'] or 0
         
         # Top Performers
         top_students = students[:5]
+
+        # Teacher's classrooms
+        classrooms = Classroom.objects.filter(teacher=request.user) if not is_admin(request.user) else None
         
         # Serialize data for JavaScript
         student_progress_json = json.dumps([
@@ -264,11 +319,29 @@ def dashboard(request):
             'student_progress_json': student_progress_json,
             'discipline_performance_json': discipline_performance_json,
             'overall_avg_score': round(overall_avg_score, 1),
+            'classrooms': classrooms,
+            'is_admin_user': is_admin(request.user),
         })
     else:
-        # Student Dashboard Logic
-        disciplines = Discipline.objects.filter(is_active=True)
-        return render(request, 'core/dashboard.html', {'disciplines': disciplines})
+        # Student Dashboard Logic: show enrolled classrooms with their disciplines
+        enrollments = ClassroomEnrollment.objects.filter(
+            student=request.user
+        ).select_related('classroom__teacher').prefetch_related('classroom__disciplines')
+
+        classrooms_data = []
+        for enrollment in enrollments:
+            cr = enrollment.classroom
+            if not cr.is_active:
+                continue
+            disciplines = cr.disciplines.filter(is_active=True)
+            classrooms_data.append({
+                'classroom': cr,
+                'disciplines': disciplines,
+            })
+
+        return render(request, 'core/dashboard.html', {
+            'classrooms_data': classrooms_data,
+        })
 
 @login_required
 def discipline_detail(request, discipline_id):
@@ -321,7 +394,10 @@ def play_level_simulation(request, level_id):
 @login_required
 @user_passes_test(is_management_user)
 def student_list(request):
-    students_qs = User.objects.filter(is_superuser=False, is_staff=False).order_by('username')
+    if is_admin(request.user):
+        students_qs = User.objects.filter(is_superuser=False, is_staff=False).order_by('username')
+    else:
+        students_qs = get_teacher_students(request.user).order_by('username')
     paginator = Paginator(students_qs, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -385,6 +461,87 @@ def student_delete(request, pk):
         return redirect('student_list')
     
     return render(request, 'core/student_confirm_delete.html', {'student': student})
+
+
+# ============================================
+# Teacher CRUD (Admin only)
+# ============================================
+
+@login_required
+@user_passes_test(is_admin)
+def teacher_list(request):
+    teachers = User.objects.filter(is_staff=True, is_superuser=False).order_by('username')
+    return render(request, 'core/teacher_list.html', {'teachers': teachers})
+
+
+@login_required
+@user_passes_test(is_admin)
+def teacher_create(request):
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        password = request.POST.get('password', '').strip()
+
+        if not username or not password:
+            messages.error(request, 'Username and password are required.')
+            return render(request, 'core/teacher_form.html')
+
+        try:
+            teacher = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+            )
+            teacher.is_staff = True
+            teacher.save()
+            messages.success(request, f'Teacher "{username}" created successfully.')
+            return redirect('teacher_list')
+        except Exception as e:
+            messages.error(request, f'Error creating teacher: {e}')
+
+    return render(request, 'core/teacher_form.html')
+
+
+@login_required
+@user_passes_test(is_admin)
+def teacher_edit(request, pk):
+    teacher = get_object_or_404(User, pk=pk, is_staff=True, is_superuser=False)
+
+    if request.method == 'POST':
+        teacher.username = request.POST.get('username', '').strip() or teacher.username
+        teacher.first_name = request.POST.get('first_name', '').strip()
+        teacher.last_name = request.POST.get('last_name', '').strip()
+        teacher.email = request.POST.get('email', '').strip()
+        password = request.POST.get('password', '').strip()
+        if password:
+            teacher.set_password(password)
+        try:
+            teacher.save()
+            messages.success(request, f'Teacher "{teacher.username}" updated successfully.')
+            return redirect('teacher_list')
+        except Exception as e:
+            messages.error(request, f'Error updating teacher: {e}')
+
+    return render(request, 'core/teacher_form.html', {'teacher': teacher})
+
+
+@login_required
+@user_passes_test(is_admin)
+def teacher_delete(request, pk):
+    teacher = get_object_or_404(User, pk=pk, is_staff=True, is_superuser=False)
+
+    if request.method == 'POST':
+        name = teacher.username
+        teacher.delete()
+        messages.success(request, f'Teacher "{name}" deleted successfully.')
+        return redirect('teacher_list')
+
+    return render(request, 'core/teacher_confirm_delete.html', {'teacher': teacher})
+
 
 @login_required
 @user_passes_test(is_student)
@@ -528,7 +685,10 @@ def student_profile(request, pk):
 @login_required
 @user_passes_test(is_management_user)
 def discipline_analytics(request, discipline_id):
-    discipline = get_object_or_404(Discipline, id=discipline_id)
+    if is_admin(request.user):
+        discipline = get_object_or_404(Discipline, id=discipline_id)
+    else:
+        discipline = get_object_or_404(Discipline, id=discipline_id, created_by=request.user)
     levels = Level.objects.filter(discipline=discipline).order_by('number')
     
     # All progress for this discipline
@@ -680,13 +840,16 @@ def dashboard_chart_data(request):
     else:
         date_from = None
     
-    # Filter progress by date
-    progress_qs = UserLevelProgress.objects.all()
+    # Determine student scope
+    if is_admin(request.user):
+        students = User.objects.filter(is_superuser=False, is_staff=False)
+    else:
+        students = get_teacher_students(request.user)
+
+    # Filter progress by date and student scope
+    progress_qs = UserLevelProgress.objects.filter(user__in=students)
     if date_from:
         progress_qs = progress_qs.filter(completed_at__gte=date_from)
-    
-    # Student data (top 10 by points earned in period)
-    students = User.objects.filter(is_superuser=False, is_staff=False)
     student_data = []
     for student in students:
         student_progress = progress_qs.filter(user=student)
@@ -701,9 +864,10 @@ def dashboard_chart_data(request):
     student_data.sort(key=lambda x: x['total_points'], reverse=True)
     student_data = student_data[:10]
     
-    # Discipline data
+    # Discipline data (filtered by ownership)
     discipline_data = []
-    for discipline in Discipline.objects.all():
+    disc_qs = Discipline.objects.all() if is_admin(request.user) else Discipline.objects.filter(created_by=request.user)
+    for discipline in disc_qs:
         disc_progress = progress_qs.filter(level__discipline=discipline)
         if disc_progress.exists() or date_from is None:
             discipline_data.append({
@@ -722,14 +886,23 @@ def dashboard_chart_data(request):
 @login_required
 @user_passes_test(is_management_user)
 def general_analytics(request):
-    """General analytics: attempts and time per level across all students."""
-    disciplines = Discipline.objects.filter(is_active=True).prefetch_related('levels')
+    """General analytics: attempts and time per level. Teacher sees only their students."""
+    # Determine student scope
+    if is_admin(request.user):
+        students = User.objects.filter(is_superuser=False, is_staff=False)
+    else:
+        students = get_teacher_students(request.user)
+
+    if is_admin(request.user):
+        disciplines = Discipline.objects.filter(is_active=True).prefetch_related('levels')
+    else:
+        disciplines = Discipline.objects.filter(is_active=True, created_by=request.user).prefetch_related('levels')
     
-    # Build per-level stats from LevelAttempt
+    # Build per-level stats from LevelAttempt (filtered by students)
     level_stats = []
     for discipline in disciplines:
         for level in discipline.levels.filter(is_active=True).order_by('number'):
-            attempts = LevelAttempt.objects.filter(level=level)
+            attempts = LevelAttempt.objects.filter(level=level, user__in=students)
             attempt_count = attempts.count()
             if attempt_count == 0:
                 continue
@@ -740,7 +913,7 @@ def general_analytics(request):
             unique_students = attempts.values('user').distinct().count()
             
             # Average attempts per student for this level
-            progress_records = UserLevelProgress.objects.filter(level=level)
+            progress_records = UserLevelProgress.objects.filter(level=level, user__in=students)
             avg_attempts = progress_records.aggregate(models.Avg('attempts'))['attempts__avg'] or 0
             
             level_stats.append({
@@ -756,8 +929,7 @@ def general_analytics(request):
                 'avg_score': round(avg_score, 1),
             })
     
-    # Per-student summary
-    students = User.objects.filter(is_superuser=False, is_staff=False)
+    # Per-student summary (filtered)
     student_stats = []
     for student in students:
         attempts = LevelAttempt.objects.filter(user=student)
@@ -817,3 +989,473 @@ def upload_question_image(request):
     qi.save()
 
     return JsonResponse({'url': qi.image.url, 'id': qi.id})
+
+
+# ============================================
+# Classroom Management Views
+# ============================================
+
+def generate_classroom_code(length=6):
+    """Generate a unique classroom code."""
+    chars = string.ascii_uppercase + string.digits
+    while True:
+        code = ''.join(random.choices(chars, k=length))
+        if not Classroom.objects.filter(code=code).exists():
+            return code
+
+
+@login_required
+@user_passes_test(is_management_user)
+def classroom_list(request):
+    """List classrooms. Admin sees all; teacher sees own."""
+    if is_admin(request.user):
+        classrooms = Classroom.objects.select_related('teacher').all()
+    else:
+        classrooms = Classroom.objects.filter(teacher=request.user)
+    return render(request, 'core/classroom_list.html', {
+        'classrooms': classrooms,
+        'is_admin_user': is_admin(request.user),
+    })
+
+
+@login_required
+@user_passes_test(is_management_user)
+def classroom_create(request):
+    """Create a new classroom."""
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        description = request.POST.get('description', '').strip()
+        access_password = request.POST.get('access_password', '').strip()
+
+        if not name or not access_password:
+            messages.error(request, 'Name and access password are required.')
+            return render(request, 'core/classroom_form.html', {
+                'all_disciplines': Discipline.objects.filter(is_active=True, created_by=request.user) if not is_admin(request.user) else Discipline.objects.filter(is_active=True),
+            })
+
+        classroom = Classroom.objects.create(
+            teacher=request.user,
+            name=name,
+            code=generate_classroom_code(),
+            access_password=access_password,
+            description=description,
+        )
+        discipline_ids = request.POST.getlist('disciplines')
+        if discipline_ids:
+            classroom.disciplines.set(discipline_ids)
+        messages.success(request, f'Classroom "{classroom.name}" created. Code: {classroom.code}')
+        return redirect('classroom_list')
+
+    return render(request, 'core/classroom_form.html', {
+        'all_disciplines': Discipline.objects.filter(is_active=True, created_by=request.user) if not is_admin(request.user) else Discipline.objects.filter(is_active=True),
+    })
+
+
+@login_required
+@user_passes_test(is_management_user)
+def classroom_edit(request, pk):
+    """Edit an existing classroom."""
+    classroom = get_object_or_404(Classroom, pk=pk)
+    # Only the owner teacher or admin can edit
+    if not is_admin(request.user) and classroom.teacher != request.user:
+        messages.error(request, 'You do not have permission to edit this classroom.')
+        return redirect('classroom_list')
+
+    if request.method == 'POST':
+        classroom.name = request.POST.get('name', '').strip() or classroom.name
+        classroom.description = request.POST.get('description', '').strip()
+        new_password = request.POST.get('access_password', '').strip()
+        if new_password:
+            classroom.access_password = new_password
+        classroom.is_active = request.POST.get('is_active') == 'on'
+        classroom.save()
+        discipline_ids = request.POST.getlist('disciplines')
+        classroom.disciplines.set(discipline_ids)
+        messages.success(request, f'Classroom "{classroom.name}" updated successfully.')
+        return redirect('classroom_list')
+
+    return render(request, 'core/classroom_form.html', {
+        'classroom': classroom,
+        'all_disciplines': Discipline.objects.filter(is_active=True, created_by=request.user) if not is_admin(request.user) else Discipline.objects.filter(is_active=True),
+        'selected_discipline_ids': list(classroom.disciplines.values_list('id', flat=True)),
+    })
+
+
+@login_required
+@user_passes_test(is_management_user)
+def classroom_delete(request, pk):
+    """Delete a classroom."""
+    classroom = get_object_or_404(Classroom, pk=pk)
+    if not is_admin(request.user) and classroom.teacher != request.user:
+        messages.error(request, 'You do not have permission to delete this classroom.')
+        return redirect('classroom_list')
+
+    if request.method == 'POST':
+        name = classroom.name
+        classroom.delete()
+        messages.success(request, f'Classroom "{name}" deleted successfully.')
+        return redirect('classroom_list')
+
+    return render(request, 'core/classroom_confirm_delete.html', {'classroom': classroom})
+
+
+@login_required
+@user_passes_test(is_management_user)
+def classroom_detail(request, pk):
+    """View classroom detail with enrolled students."""
+    classroom = get_object_or_404(Classroom, pk=pk)
+    if not is_admin(request.user) and classroom.teacher != request.user:
+        messages.error(request, 'You do not have permission to view this classroom.')
+        return redirect('classroom_list')
+
+    enrollments = classroom.enrollments.select_related('student').order_by('-enrolled_at')
+    return render(request, 'core/classroom_detail.html', {
+        'classroom': classroom,
+        'enrollments': enrollments,
+    })
+
+
+@login_required
+@user_passes_test(is_management_user)
+def classroom_remove_student(request, pk, student_id):
+    """Remove a student from a classroom."""
+    classroom = get_object_or_404(Classroom, pk=pk)
+    if not is_admin(request.user) and classroom.teacher != request.user:
+        messages.error(request, 'Permission denied.')
+        return redirect('classroom_list')
+
+    if request.method == 'POST':
+        enrollment = ClassroomEnrollment.objects.filter(classroom=classroom, student_id=student_id).first()
+        if enrollment:
+            student_name = enrollment.student.username
+            enrollment.delete()
+            messages.success(request, f'Student "{student_name}" removed from classroom.')
+    return redirect('classroom_detail', pk=pk)
+
+
+# ============================================
+# Student Enrollment (Join Classroom)
+# ============================================
+
+@login_required
+@user_passes_test(is_student)
+def join_classroom(request):
+    """View for a student to search and join a classroom."""
+    if request.method == 'POST':
+        code = request.POST.get('code', '').strip().upper()
+        password = request.POST.get('password', '').strip()
+
+        if not code or not password:
+            messages.error(request, 'You must enter the code and password.')
+            return render(request, 'core/join_classroom.html')
+
+        classroom = Classroom.objects.filter(code=code, is_active=True).first()
+        if not classroom:
+            messages.error(request, 'No classroom found with that code.')
+            return render(request, 'core/join_classroom.html')
+
+        if classroom.access_password != password:
+            messages.error(request, 'Incorrect password.')
+            return render(request, 'core/join_classroom.html')
+
+        # Check if already enrolled
+        if ClassroomEnrollment.objects.filter(classroom=classroom, student=request.user).exists():
+            messages.warning(request, f'You are already enrolled in "{classroom.name}".')
+            return render(request, 'core/join_classroom.html')
+
+        ClassroomEnrollment.objects.create(classroom=classroom, student=request.user)
+        messages.success(request, f'You have joined "{classroom.name}" with teacher {classroom.teacher.first_name or classroom.teacher.username}!')
+        return redirect('dashboard')
+
+    return render(request, 'core/join_classroom.html')
+
+
+@login_required
+@user_passes_test(is_student)
+def my_classrooms(request):
+    """View the classrooms the student is enrolled in."""
+    enrollments = ClassroomEnrollment.objects.filter(student=request.user).select_related('classroom__teacher')
+    return render(request, 'core/my_classrooms.html', {'enrollments': enrollments})
+
+
+# ============================================
+# Gemini AI Views
+# ============================================
+from .gemini_service import call_gemini, TUTOR_SYSTEM_PROMPT, GENERATE_QUESTIONS_PROMPT
+
+
+@login_required
+def ai_tutor_view(request):
+    """Página del tutor IA para estudiantes."""
+    conversations = AIConversation.objects.filter(user=request.user, purpose='tutor')[:20]
+    return render(request, 'core/ai_tutor.html', {'conversations': conversations})
+
+
+@login_required
+@require_POST
+def ai_tutor_chat(request):
+    """Endpoint AJAX para enviar mensaje al tutor IA."""
+    try:
+        data = json.loads(request.body)
+        user_message = data.get('message', '').strip()
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'Mensaje inválido.'}, status=400)
+
+    if not user_message:
+        return JsonResponse({'error': 'El mensaje no puede estar vacío.'}, status=400)
+
+    if len(user_message) > 1000:
+        return JsonResponse({'error': 'El mensaje es demasiado largo (máx. 1000 caracteres).'}, status=400)
+
+    # Build context based on user role
+    if request.user.is_staff:
+        user_context = _build_teacher_context(request.user)
+        context_label = "CONTEXTO_PROFESOR"
+    else:
+        user_context = _build_student_context(request.user)
+        context_label = "CONTEXTO_ESTUDIANTE"
+
+    # Build prompt with system context + user data
+    full_prompt = (
+        f"{TUTOR_SYSTEM_PROMPT}\n\n"
+        f"[{context_label}]\n{user_context}\n[/{context_label}]\n\n"
+        f"Usuario: {user_message}\n\nMateBot:"
+    )
+
+    result = call_gemini(full_prompt, temperature=0.7, max_tokens=1024)
+
+    if not result['success']:
+        return JsonResponse({'error': result['error']}, status=502)
+
+    # Save to database
+    conversation = AIConversation.objects.create(
+        user=request.user,
+        purpose='tutor',
+        prompt=user_message,
+        response=result['text'],
+        tokens_used=result['tokens']
+    )
+
+    return JsonResponse({
+        'response': result['text'],
+        'tokens': result['tokens'],
+        'id': conversation.id,
+        'timestamp': conversation.created_at.strftime('%d/%m/%Y %H:%M')
+    })
+
+
+def _build_student_context(user):
+    """Construye un resumen del progreso del estudiante para inyectar en el prompt."""
+    from .models import UserLevelProgress, LevelAttempt, Discipline
+
+    context_lines = []
+    context_lines.append(f"Nombre: {user.first_name or user.username}")
+    context_lines.append(f"Puntos totales: {user.total_points}")
+
+    # Progress per discipline
+    progress_list = UserLevelProgress.objects.filter(user=user).select_related('level__discipline')
+    if progress_list.exists():
+        # Group by discipline
+        disciplines_data = {}
+        for p in progress_list:
+            disc_name = p.level.discipline.name
+            if disc_name not in disciplines_data:
+                disciplines_data[disc_name] = {'completed': 0, 'total_stars': 0, 'levels': []}
+            disciplines_data[disc_name]['completed'] += 1
+            disciplines_data[disc_name]['total_stars'] += p.stars
+            disciplines_data[disc_name]['levels'].append(
+                f"Nivel {p.level.number}: {p.stars} estrellas, puntaje {p.score}, {p.attempts} intentos"
+            )
+
+        context_lines.append(f"\nNiveles completados por disciplina:")
+        for disc, info in disciplines_data.items():
+            context_lines.append(f"- {disc}: {info['completed']} niveles, {info['total_stars']} estrellas")
+            for lev in info['levels'][-5:]:  # Last 5 levels max
+                context_lines.append(f"  • {lev}")
+    else:
+        context_lines.append("No ha completado ningún nivel todavía.")
+
+    # Recent attempts (last 5)
+    recent_attempts = LevelAttempt.objects.filter(user=user).select_related('level__discipline')[:5]
+    if recent_attempts.exists():
+        context_lines.append(f"\nÚltimos intentos:")
+        for att in recent_attempts:
+            context_lines.append(
+                f"- {att.level.discipline.name} Nivel {att.level.number}: "
+                f"puntaje {att.score}, {att.stars} estrellas, "
+                f"tiempo {att.time_seconds}s ({att.created_at:%d/%m/%Y %H:%M})"
+            )
+
+    # Weak areas (levels with 1 star or many attempts)
+    weak_levels = UserLevelProgress.objects.filter(
+        user=user, stars__lte=1
+    ).select_related('level__discipline')[:5]
+    if weak_levels.exists():
+        context_lines.append(f"\nÁreas donde necesita mejorar (1 estrella o menos):")
+        for wl in weak_levels:
+            context_lines.append(f"- {wl.level.discipline.name} Nivel {wl.level.number} ({wl.attempts} intentos, {wl.stars} estrellas)")
+
+    return "\n".join(context_lines)
+
+
+def _build_teacher_context(user):
+    """Construye un resumen de datos de estudiantes para inyectar en el prompt del profesor."""
+    from .models import UserLevelProgress, LevelAttempt, Discipline, Level, Classroom
+    from django.contrib.auth import get_user_model
+    from django.db.models import Avg, Count, Sum
+    User = get_user_model()
+
+    context_lines = []
+    is_admin_user = user.is_superuser
+
+    if is_admin_user:
+        context_lines.append(f"Rol: Administrador (acceso global)")
+        students = User.objects.filter(is_staff=False, is_superuser=False)
+    else:
+        context_lines.append(f"Rol: Profesor (acceso limitado a sus estudiantes)")
+        students = get_teacher_students(user)
+        # Show teacher's classrooms
+        classrooms = Classroom.objects.filter(teacher=user)
+        if classrooms.exists():
+            context_lines.append(f"Grupos/Cursos del profesor:")
+            for c in classrooms:
+                context_lines.append(f"- {c.name} (código: {c.code}): {c.student_count} estudiantes")
+
+    context_lines.append(f"Nombre: {user.first_name or user.username}")
+    total_students = students.count()
+    context_lines.append(f"\nTotal de estudiantes: {total_students}")
+
+    # Disciplines overview
+    disciplines = Discipline.objects.filter(is_active=True)
+    context_lines.append(f"Disciplinas activas: {disciplines.count()}")
+    for disc in disciplines:
+        levels_count = disc.levels.filter(is_active=True).count()
+        context_lines.append(f"- {disc.name}: {levels_count} niveles activos")
+
+    # Student performance summary (top/bottom)
+    student_stats = []
+    for s in students[:30]:  # Limit to avoid huge prompts
+        progress = UserLevelProgress.objects.filter(user=s)
+        total_stars = progress.aggregate(Sum('stars'))['stars__sum'] or 0
+        levels_done = progress.count()
+        student_stats.append({
+            'name': s.first_name or s.username,
+            'points': s.total_points,
+            'levels': levels_done,
+            'stars': total_stars
+        })
+
+    if student_stats:
+        # Sort by points desc
+        student_stats.sort(key=lambda x: x['points'], reverse=True)
+
+        context_lines.append(f"\nRanking de estudiantes (top 10):")
+        for i, st in enumerate(student_stats[:10], 1):
+            context_lines.append(
+                f"  {i}. {st['name']}: {st['points']} pts, {st['levels']} niveles, {st['stars']} estrellas"
+            )
+
+        # Bottom performers
+        struggling = [s for s in student_stats if s['levels'] == 0 or s['stars'] < 3]
+        if struggling:
+            context_lines.append(f"\nEstudiantes que necesitan atención ({len(struggling)}):")
+            for st in struggling[:5]:
+                context_lines.append(f"  - {st['name']}: {st['points']} pts, {st['levels']} niveles completados")
+
+    # Recent activity (last 10 attempts - filtered by teacher's students)
+    recent = LevelAttempt.objects.filter(user__in=students).select_related('user', 'level__discipline')[:10]
+    if recent.exists():
+        context_lines.append(f"\nActividad reciente (últimos intentos):")
+        for att in recent:
+            name = att.user.first_name or att.user.username
+            context_lines.append(
+                f"- {name} → {att.level.discipline.name} Nivel {att.level.number}: "
+                f"{att.score} pts, {att.stars}★, {att.time_seconds}s ({att.created_at:%d/%m/%Y %H:%M})"
+            )
+
+    # General averages (filtered)
+    avg_data = LevelAttempt.objects.filter(user__in=students).aggregate(
+        avg_score=Avg('score'),
+        avg_stars=Avg('stars'),
+        avg_time=Avg('time_seconds'),
+        total_attempts=Count('id')
+    )
+    if avg_data['total_attempts']:
+        context_lines.append(f"\nEstadísticas generales:")
+        context_lines.append(f"- Total de intentos: {avg_data['total_attempts']}")
+        context_lines.append(f"- Puntaje promedio: {avg_data['avg_score']:.1f}")
+        context_lines.append(f"- Estrellas promedio: {avg_data['avg_stars']:.1f}")
+        context_lines.append(f"- Tiempo promedio: {avg_data['avg_time']:.0f}s")
+
+    return "\n".join(context_lines)
+
+
+@login_required
+@user_passes_test(is_management_user)
+@require_POST
+def ai_generate_questions(request):
+    """Endpoint AJAX para generar preguntas con IA (solo profesores)."""
+    try:
+        data = json.loads(request.body)
+        topic = data.get('topic', '').strip()
+        question_type = data.get('question_type', 'option')
+        count = int(data.get('count', 3))
+        difficulty = data.get('difficulty', 'fácil')
+    except (json.JSONDecodeError, AttributeError, ValueError):
+        return JsonResponse({'error': 'Datos inválidos.'}, status=400)
+
+    if not topic:
+        return JsonResponse({'error': 'Debes indicar un tema.'}, status=400)
+
+    count = min(max(count, 1), 10)  # Between 1 and 10
+
+    # Build specific prompt based on question type
+    type_instructions = {
+        'option': 'Cada objeto debe tener: "text" (pregunta), "options" (array de 4 opciones), "correct" (índice 0-3 de la opción correcta).',
+        'writing': 'Cada objeto debe tener: "text" (pregunta), "correct_answer" (respuesta correcta como texto).',
+        'voice': 'Cada objeto debe tener: "text" (pregunta), "correct_answer" (respuesta correcta como texto corto, preferiblemente un número o palabra).',
+    }
+
+    instruction = type_instructions.get(question_type, type_instructions['option'])
+
+    full_prompt = (
+        f"{GENERATE_QUESTIONS_PROMPT}\n\n"
+        f"Genera {count} preguntas de matemáticas sobre: {topic}.\n"
+        f"Dificultad: {difficulty}.\n"
+        f"Tipo de pregunta: {question_type}.\n"
+        f"{instruction}\n"
+        f"Responde SOLO con el array JSON."
+    )
+
+    result = call_gemini(full_prompt, temperature=0.8, max_tokens=2048)
+
+    if not result['success']:
+        return JsonResponse({'error': result['error']}, status=502)
+
+    # Try to parse JSON from response
+    raw_text = result['text'].strip()
+    if raw_text.startswith('```'):
+        raw_text = raw_text.split('\n', 1)[1] if '\n' in raw_text else raw_text
+        raw_text = raw_text.rsplit('```', 1)[0]
+
+    try:
+        questions = json.loads(raw_text)
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'error': 'La IA no generó un formato válido. Intenta de nuevo.',
+            'raw': result['text']
+        }, status=422)
+
+    # Save to database
+    AIConversation.objects.create(
+        user=request.user,
+        purpose='generate',
+        prompt=f"Tema: {topic} | Tipo: {question_type} | Cantidad: {count} | Dificultad: {difficulty}",
+        response=result['text'],
+        tokens_used=result['tokens']
+    )
+
+    return JsonResponse({
+        'questions': questions,
+        'tokens': result['tokens']
+    })

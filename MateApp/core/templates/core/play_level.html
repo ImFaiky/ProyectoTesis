@@ -270,7 +270,8 @@
         '{% static "core/audio/bgm/Donkey-Kong-Country-OST-_Super-Nintendo_-Track-0223-Simian-Segue.mp3" %}',
         '{% static "core/audio/bgm/Super-Mario-64-Dire-Dire-Docks-Jolly-Roger-Bay-Music.mp3" %}',
         '{% static "core/audio/bgm/Super-Mario-64-Music-Bowsers-Road-EXTENDED.mp3" %}',
-        '{% static "core/audio/bgm/Super-Mario-64-Music-File-Select-EXTENDED.mp3" %}'
+        '{% static "core/audio/bgm/Super-Mario-64-Music-File-Select-EXTENDED.mp3" %}',
+        '{% static "core/audio/bgm/Super Mario 64 - End theme.mp3" %}'
     ];
     var bgmAudio = null;
     var bgmPlaying = false;
@@ -514,7 +515,7 @@
         if (q.image) {
             const imgDiv = document.createElement('div');
             imgDiv.className = 'question-image-container';
-            imgDiv.innerHTML = `<img src="${q.image}" alt="Imagen de la pregunta" class="question-image" />`;
+            imgDiv.innerHTML = `<img src="${q.image}" alt="Question image" class="question-image" />`;
             container.appendChild(imgDiv);
         }
 
@@ -771,24 +772,24 @@
         var correctAnswer = data.question.correct_answer || '';
         container.innerHTML = '<div class="voice-game">' +
             '<div class="voice-status" id="voice-status">' +
-                '<i class="bi bi-mic-fill"></i> Presiona el botón y di tu respuesta' +
+                '<i class="bi bi-mic-fill"></i> Press the button and say your answer' +
             '</div>' +
             '<div class="voice-transcript-box" id="voice-transcript-box">' +
-                '<span class="voice-transcript-placeholder">Tu respuesta aparecerá aquí...</span>' +
+                '<span class="voice-transcript-placeholder">Your answer will appear here...</span>' +
             '</div>' +
             '<div class="voice-controls">' +
                 '<button type="button" class="voice-record-btn" id="voice-record-btn" onclick="startVoiceRecognition()">' +
                     '<i class="bi bi-mic-fill"></i>' +
-                    '<span>Hablar</span>' +
+                    '<span>Speak</span>' +
                 '</button>' +
                 '<button type="button" class="voice-submit-btn" id="voice-submit-btn" style="display:none;" onclick="checkVoiceAnswer(\'' + correctAnswer.replace(/'/g, "\\'") + '\')">' +
                     '<i class="bi bi-check-lg"></i>' +
-                    '<span>Verificar</span>' +
+                    '<span>Check</span>' +
                 '</button>' +
             '</div>' +
             '<div class="voice-hint">' +
                 '<i class="bi bi-info-circle"></i> ' +
-                'Usa Chrome o Edge para mejor compatibilidad con reconocimiento de voz' +
+                'Use Chrome or Edge for best voice recognition compatibility' +
             '</div>' +
         '</div>';
     }
@@ -797,7 +798,7 @@
         var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             var statusEl = document.getElementById('voice-status');
-            statusEl.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.';
+            statusEl.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> Your browser does not support voice recognition. Use Chrome or Edge.';
             statusEl.className = 'voice-status voice-status-error';
             return;
         }
@@ -818,10 +819,10 @@
         var recordBtn = document.getElementById('voice-record-btn');
         var submitBtn = document.getElementById('voice-submit-btn');
 
-        statusEl.innerHTML = '<i class="bi bi-mic-fill text-danger"></i> Escuchando... habla ahora';
+        statusEl.innerHTML = '<i class="bi bi-mic-fill text-danger"></i> Listening... speak now';
         statusEl.className = 'voice-status voice-status-listening';
         recordBtn.classList.add('voice-recording');
-        recordBtn.innerHTML = '<i class="bi bi-stop-fill"></i><span>Detener</span>';
+        recordBtn.innerHTML = '<i class="bi bi-stop-fill"></i><span>Stop</span>';
         recordBtn.onclick = function() {
             voiceRecognition.stop();
         };
@@ -847,27 +848,27 @@
 
         voiceRecognition.onend = function() {
             recordBtn.classList.remove('voice-recording');
-            recordBtn.innerHTML = '<i class="bi bi-mic-fill"></i><span>Hablar de nuevo</span>';
+            recordBtn.innerHTML = '<i class="bi bi-mic-fill"></i><span>Speak again</span>';
             recordBtn.onclick = function() { startVoiceRecognition(); };
 
             var final = transcriptBox.getAttribute('data-final');
             if (final) {
-                statusEl.innerHTML = '<i class="bi bi-check-circle text-success"></i> Respuesta capturada: "' + final + '"';
+                statusEl.innerHTML = '<i class="bi bi-check-circle text-success"></i> Answer captured: "' + final + '"';
                 statusEl.className = 'voice-status voice-status-done';
                 submitBtn.style.display = '';
             } else {
-                statusEl.innerHTML = '<i class="bi bi-exclamation-circle text-warning"></i> No se detectó voz. Intenta de nuevo.';
+                statusEl.innerHTML = '<i class="bi bi-exclamation-circle text-warning"></i> No voice detected. Try again.';
                 statusEl.className = 'voice-status voice-status-error';
             }
         };
 
         voiceRecognition.onerror = function(event) {
             recordBtn.classList.remove('voice-recording');
-            recordBtn.innerHTML = '<i class="bi bi-mic-fill"></i><span>Intentar de nuevo</span>';
+            recordBtn.innerHTML = '<i class="bi bi-mic-fill"></i><span>Try again</span>';
             recordBtn.onclick = function() { startVoiceRecognition(); };
             var msg = 'Error: ';
-            if (event.error === 'not-allowed') msg += 'Permiso de micrófono denegado.';
-            else if (event.error === 'no-speech') msg += 'No se detectó voz.';
+            if (event.error === 'not-allowed') msg += 'Microphone permission denied.';
+            else if (event.error === 'no-speech') msg += 'No voice detected.';
             else msg += event.error;
             statusEl.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> ' + msg;
             statusEl.className = 'voice-status voice-status-error';

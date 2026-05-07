@@ -44,57 +44,77 @@
     </div>
 </div>
 
-<!-- Section Title -->
-<div class="d-flex align-items-center mb-4">
-    <h2 class="fw-bold mb-0">
-        <i class="bi bi-collection text-primary me-2"></i>Choose a Discipline
-    </h2>
-    <span class="badge bg-primary bg-opacity-10 text-primary ms-3 fs-6">{{ disciplines|length }} available</span>
-</div>
+<!-- My Groups -->
+{% if classrooms_data %}
+{% for item in classrooms_data %}
+<div class="mb-5">
+    <div class="d-flex align-items-center mb-3">
+        <h3 class="fw-bold mb-0">
+            <i class="bi bi-building text-primary me-2"></i>{{ item.classroom.name }}
+        </h3>
+        <span class="badge bg-primary bg-opacity-10 text-primary ms-3 fs-6">
+            <i class="bi bi-person-badge me-1"></i>{{ item.classroom.teacher.first_name|default:item.classroom.teacher.username }}
+        </span>
+        <span class="badge bg-info bg-opacity-10 text-info ms-2 fs-6">
+            {{ item.disciplines|length }} disciplines
+        </span>
+    </div>
 
-<div class="row g-4">
-    {% for discipline in disciplines %}
-    <div class="col-md-6 col-lg-4">
-        <a href="{% url 'discipline_detail' discipline.id %}" class="text-decoration-none">
-            <div class="card h-100 border-0 shadow-sm discipline-play-card overflow-hidden">
-                <div class="card-body text-center p-5 d-flex flex-column align-items-center justify-content-center text-white position-relative discipline-card-bg"
-                    style="background-color: {{ discipline.color|default:'#0d6efd' }};">
-                    <div class="discipline-card-glow"></div>
-                    {% if discipline.icon %}
-                    <img src="{{ discipline.icon.url }}" alt="{{ discipline.name }} icon" class="mb-3 position-relative"
-                        style="width: 80px; height: 80px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); z-index:2;">
-                    {% else %}
-                    <i class="bi bi-book-half display-1 mb-3 position-relative" style="z-index:2;"></i>
-                    {% endif %}
-                    <h2 class="card-title fw-bold position-relative" style="z-index:2;">{{ discipline.name }}</h2>
+    <div class="row g-4">
+        {% for discipline in item.disciplines %}
+        <div class="col-md-6 col-lg-4">
+            <a href="{% url 'discipline_detail' discipline.id %}" class="text-decoration-none">
+                <div class="card h-100 border-0 shadow-sm discipline-play-card overflow-hidden">
+                    <div class="card-body text-center p-5 d-flex flex-column align-items-center justify-content-center text-white position-relative discipline-card-bg"
+                        style="background-color: {{ discipline.color|default:'#0d6efd' }};">
+                        <div class="discipline-card-glow"></div>
+                        {% if discipline.icon %}
+                        <img src="{{ discipline.icon.url }}" alt="{{ discipline.name }} icon" class="mb-3 position-relative"
+                            style="width: 80px; height: 80px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); z-index:2;">
+                        {% else %}
+                        <i class="bi bi-book-half display-1 mb-3 position-relative" style="z-index:2;"></i>
+                        {% endif %}
+                        <h2 class="card-title fw-bold position-relative" style="z-index:2;">{{ discipline.name }}</h2>
+                    </div>
+                    <div class="card-footer bg-white border-0 p-3 d-flex justify-content-between align-items-center">
+                        <span class="badge bg-light text-dark border">
+                            <i class="bi bi-speedometer2 me-1"></i>
+                            {% if discipline.difficulty == 1 %}Easy
+                            {% elif discipline.difficulty == 2 %}Medium
+                            {% elif discipline.difficulty == 3 %}Hard
+                            {% else %}{{ discipline.difficulty }}{% endif %}
+                        </span>
+                        <span class="btn btn-sm btn-outline-dark rounded-pill px-3 play-btn">
+                            Play <i class="bi bi-play-fill"></i>
+                        </span>
+                    </div>
                 </div>
-                <div class="card-footer bg-white border-0 p-3 d-flex justify-content-between align-items-center">
-                    <span class="badge bg-light text-dark border">
-                        <i class="bi bi-speedometer2 me-1"></i>
-                        {% if discipline.difficulty == 1 %}Easy
-                        {% elif discipline.difficulty == 2 %}Medium
-                        {% elif discipline.difficulty == 3 %}Hard
-                        {% else %}{{ discipline.difficulty }}{% endif %}
-                    </span>
-                    <span class="btn btn-sm btn-outline-dark rounded-pill px-3 play-btn">
-                        Play <i class="bi bi-play-fill"></i>
-                    </span>
-                </div>
-            </div>
-        </a>
-    </div>
-    {% empty %}
-    <div class="col-12">
-        <div class="text-center py-5">
-            <div class="mb-3" style="font-size: 4rem; opacity: 0.3;">
-                <i class="bi bi-inbox"></i>
-            </div>
-            <h4 class="fw-bold text-muted">No disciplines available yet</h4>
-            <p class="text-muted">Ask your teacher to add some content. Check back soon!</p>
+            </a>
         </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-3 text-muted">
+                <i class="bi bi-collection" style="font-size: 2rem; opacity: 0.4;"></i>
+                <p class="mt-2 mb-0">This classroom has no disciplines assigned yet.</p>
+            </div>
+        </div>
+        {% endfor %}
     </div>
-    {% endfor %}
 </div>
+{% endfor %}
+
+{% else %}
+<div class="text-center py-5">
+    <div class="mb-3" style="font-size: 4rem; opacity: 0.3;">
+        <i class="bi bi-inbox"></i>
+    </div>
+    <h4 class="fw-bold text-muted">You are not enrolled in any classroom</h4>
+    <p class="text-muted">Ask your teacher for the code and password to join a classroom.</p>
+    <a href="{% url 'join_classroom' %}" class="btn btn-primary btn-lg mt-2">
+        <i class="bi bi-search me-1"></i> Find a Classroom
+    </a>
+</div>
+{% endif %}
 
 <style>
 .student-header {

@@ -18,6 +18,13 @@
                         </div>
                     </div>
                     <div class="mb-3">
+                        <label for="cedula" class="form-label fw-bold">ID Card (Cedula)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-card-text"></i></span>
+                            <input type="text" class="form-control" name="cedula" value="{% if student %}{{ student.cedula }}{% endif %}" placeholder="e.g. 1234567890">
+                        </div>
+                    </div>
+                    <div class="mb-3">
                         <label for="email" class="form-label fw-bold">Email</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-envelope"></i></span>

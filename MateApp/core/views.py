@@ -424,9 +424,12 @@ def student_create(request):
         username = request.POST['username']
         email = request.POST.get('email')
         password = request.POST['password']
+        cedula = request.POST.get('cedula', '').strip()
         
         try:
-            User.objects.create_user(username=username, email=email, password=password)
+            user = User.objects.create_user(username=username, email=email, password=password)
+            user.cedula = cedula
+            user.save()
             messages.success(request, 'Student created successfully.')
             return redirect('student_list')
         except Exception as e:
@@ -444,8 +447,10 @@ def student_edit(request, pk):
         email = request.POST.get('email')
         password = request.POST.get('password')
         
+        cedula = request.POST.get('cedula', '').strip()
         try:
             student.username = username
+            student.cedula = cedula
             if email:
                 student.email = email
             if password:

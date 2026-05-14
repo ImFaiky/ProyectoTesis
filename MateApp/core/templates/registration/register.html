@@ -506,6 +506,15 @@
                 </div>
 
                 <div class="form-floating-custom">
+                    <label for="id_cedula">ID Card</label>
+                    <div class="input-wrapper">
+                        <i class="bi bi-card-text input-icon"></i>
+                        <input type="text" name="cedula" id="id_cedula" placeholder="e.g. 1717171717"
+                               value="{{ form.cedula.value|default:'' }}">
+                    </div>
+                </div>
+
+                <div class="form-floating-custom">
                     <label for="id_password1">Password</label>
                     <div class="input-wrapper">
                         <i class="bi bi-lock input-icon"></i>

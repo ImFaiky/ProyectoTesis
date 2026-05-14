@@ -187,13 +187,14 @@
                                     <div class="card-body p-0">
                                         <div class="p-2">
                                             <input type="text" id="studentSearch" class="form-control form-control-sm"
-                                                placeholder="Search by name or email...">
+                                                placeholder="Search by cedula, name or email...">
                                         </div>
                                         <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
                                             <table class="table table-hover table-sm mb-0" id="availableStudentsTable">
                                                 <thead class="table-light sticky-top">
                                                     <tr>
                                                         <th>Username</th>
+                                                        <th>Cedula</th>
                                                         <th>Email</th>
                                                         <th class="text-center" style="width: 90px;">Action</th>
                                                     </tr>
@@ -202,16 +203,18 @@
                                                     {% for student in all_students %}
                                                     <tr data-student-id="{{ student.id }}"
                                                         data-username="{{ student.username|lower }}"
+                                                        data-cedula="{{ student.cedula|lower }}"
                                                         data-email="{{ student.email|lower }}"
                                                         class="student-available-row {% if student.id in assigned_student_ids %}d-none{% endif %}">
                                                         <td>
                                                             <i class="bi bi-person-circle text-muted me-1"></i>
                                                             {{ student.username }}
                                                         </td>
+                                                        <td class="small">{{ student.cedula|default:"-" }}</td>
                                                         <td class="text-muted small">{{ student.email|default:"-" }}</td>
                                                         <td class="text-center">
                                                             <button type="button" class="btn btn-sm btn-outline-success py-0 px-2"
-                                                                onclick="assignStudent({{ student.id }}, '{{ student.username|escapejs }}', '{{ student.email|escapejs }}')">
+                                                                onclick="assignStudent({{ student.id }}, '{{ student.username|escapejs }}', '{{ student.cedula|escapejs }}', '{{ student.email|escapejs }}')">
                                                                 <i class="bi bi-plus-lg"></i> Add
                                                             </button>
                                                         </td>
@@ -241,6 +244,7 @@
                                                 <thead class="table-light sticky-top">
                                                     <tr>
                                                         <th>Username</th>
+                                                        <th>Cedula</th>
                                                         <th>Email</th>
                                                         <th class="text-center" style="width: 90px;">Action</th>
                                                     </tr>
@@ -253,6 +257,7 @@
                                                             <i class="bi bi-person-check-fill text-info me-1"></i>
                                                             {{ student.username }}
                                                         </td>
+                                                        <td class="small">{{ student.cedula|default:"-" }}</td>
                                                         <td class="text-muted small">{{ student.email|default:"-" }}</td>
                                                         <td class="text-center">
                                                             <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2"
@@ -697,13 +702,14 @@
         }
     }
 
-    function assignStudent(id, username, email) {
+    function assignStudent(id, username, cedula, email) {
         var availableRow = document.querySelector('#availableStudentsBody tr[data-student-id="' + id + '"]');
         if (availableRow) availableRow.classList.add('d-none');
         var assignedBody = document.getElementById('assignedStudentsBody');
         var tr = document.createElement('tr');
         tr.setAttribute('data-student-id', id);
         tr.innerHTML = '<td><i class="bi bi-person-check-fill text-info me-1"></i> ' + username + '</td>' +
+            '<td class="small">' + (cedula || '-') + '</td>' +
             '<td class="text-muted small">' + (email || '-') + '</td>' +
             '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="unassignStudent(' + id + ')"><i class="bi bi-x-lg"></i> Remove</button></td>';
         assignedBody.appendChild(tr);
@@ -741,8 +747,9 @@
         var rows = document.querySelectorAll('#availableStudentsBody tr.student-available-row');
         rows.forEach(function(row) {
             var username = row.getAttribute('data-username') || '';
+            var cedula = row.getAttribute('data-cedula') || '';
             var email = row.getAttribute('data-email') || '';
-            var matches = username.includes(query) || email.includes(query);
+            var matches = cedula.includes(query) || username.includes(query) || email.includes(query);
             if (matches) {
                 row.classList.remove('search-hidden');
             } else {

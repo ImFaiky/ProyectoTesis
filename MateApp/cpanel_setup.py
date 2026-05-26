@@ -52,11 +52,42 @@ except Exception as e:
 
 # 2. Recolectar los archivos estáticos
 try:
-    print("\n[2/2] Recolectando archivos estáticos (collectstatic)...")
+    print("\n[2/4] Recolectando archivos estáticos (collectstatic)...")
     call_command('collectstatic', interactive=False)
     print(">>> ¡Archivos estáticos recopilados con éxito! <<<")
 except Exception as e:
     print(f"!!! Error al recopilar archivos estáticos: {e} !!!")
+    import traceback
+    traceback.print_exc()
+
+# 3. Copiar archivos estáticos a la carpeta pública del subdominio
+import shutil
+src_static = os.path.join(os.path.dirname(__file__), 'static_collected')
+dst_static = '/home/damisoft/mate-ia.damisoft-ec.com/static'
+
+try:
+    print(f"\n[3/4] Copiando archivos estáticos públicos a: {dst_static}...")
+    if os.path.exists(src_static):
+        shutil.copytree(src_static, dst_static, dirs_exist_ok=True)
+        print(">>> ¡Archivos estáticos copiados a la carpeta pública con éxito! <<<")
+    else:
+        print("!!! ADVERTENCIA: La carpeta de origen static_collected no existe !!!")
+except Exception as e:
+    print(f"!!! Error al copiar archivos estáticos a la carpeta pública: {e} !!!")
+    import traceback
+    traceback.print_exc()
+
+# 4. Forzar el reinicio de la aplicación Python (Passenger)
+try:
+    print("\n[4/4] Forzando el reinicio de la aplicación Python...")
+    tmp_dir = os.path.join(os.path.dirname(__file__), 'tmp')
+    os.makedirs(tmp_dir, exist_ok=True)
+    restart_file = os.path.join(tmp_dir, 'restart.txt')
+    with open(restart_file, 'w') as f:
+        f.write('reload')
+    print(">>> ¡Reinicio del servidor programado con éxito! <<<")
+except Exception as e:
+    print(f"!!! Error al programar el reinicio: {e} !!!")
     import traceback
     traceback.print_exc()
 

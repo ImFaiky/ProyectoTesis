@@ -23,3 +23,11 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Django static files
+static_collected/
+static/
+
+# Temporary cPanel setup/debug scripts
+cpanel_git_status.py
+cpanel_pip_debug.py

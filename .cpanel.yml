@@ -13,8 +13,8 @@ deployment:
     
     # 2. Ejecutar script de migraciones y estáticos usando el Python del Entorno Virtual (virtualenv)
     # NOTA: Al configurar "Setup Python App", debes usar como Application Root: mate-ia.damisoft-ec.com/MateApp
-    # Si eliges otra versión de Python diferente a la 3.10 (ej: 3.11), cambia el "3.10" abajo por tu versión.
-    - /home/damisoft/virtualenv/mate-ia.damisoft-ec.com/MateApp/3.10/bin/python $APP_PATH/cpanel_setup.py
+    # Si eliges otra versión de Python diferente a la 3.11 (ej: 3.12), cambia el "3.11" abajo por tu versión.
+    - /home/damisoft/virtualenv/mate-ia.damisoft-ec.com/MateApp/3.11/bin/python $APP_PATH/cpanel_setup.py
     
     # 3. Copiar los archivos estáticos recopilados a la carpeta pública del subdominio
     - /bin/mkdir -p $PUBLIC_STATIC

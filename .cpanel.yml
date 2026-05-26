@@ -1,0 +1,25 @@
+---
+deployment:
+  tasks:
+    # =========================================================================
+    # CONFIGURACIÓN DE DESPLIEGUE CONTINUO DE DJANGO EN CPANEL
+    # =========================================================================
+    # Este archivo vive en la RAÍZ del repositorio (/home/damisoft/mate-ia.damisoft-ec.com)
+    # =========================================================================
+    
+    # 1. Ruta interna de la app Django (dentro del subdirectorio MateApp)
+    - export APP_PATH=/home/damisoft/mate-ia.damisoft-ec.com/MateApp
+    - export PUBLIC_STATIC=/home/damisoft/mate-ia.damisoft-ec.com/static
+    
+    # 2. Ejecutar script de migraciones y estáticos usando el Python del Entorno Virtual (virtualenv)
+    # NOTA: Al configurar "Setup Python App", debes usar como Application Root: mate-ia.damisoft-ec.com/MateApp
+    # Si eliges otra versión de Python diferente a la 3.10 (ej: 3.11), cambia el "3.10" abajo por tu versión.
+    - /home/damisoft/virtualenv/mate-ia.damisoft-ec.com/MateApp/3.10/bin/python $APP_PATH/cpanel_setup.py
+    
+    # 3. Copiar los archivos estáticos recopilados a la carpeta pública del subdominio
+    - /bin/mkdir -p $PUBLIC_STATIC
+    - /bin/cp -R $APP_PATH/static_collected/* $PUBLIC_STATIC/
+    
+    # 4. Forzar el reinicio de la aplicación Python (Passenger)
+    - /bin/mkdir -p $APP_PATH/tmp
+    - /bin/touch $APP_PATH/tmp/restart.txt
